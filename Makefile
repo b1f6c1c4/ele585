@@ -1,33 +1,33 @@
 CFLAGS = -lrt
 
-all: serial_histogram parallel_A_histogram parallel_B_histogram parallel_C_histogram parallel_D_histogram parallel_mpi_E_histogram parallel_mpi_F_histogram
+.PRECIOUS: bin/serial/histogram
 
-serial_histogram: histogram.c
+bin/serial/%: src/serial/%.c
+	mkdir -p $(shell dirname $@)
 	icc -O3 -o $@ $^ $(CFLAGS)
 
-parallel_A_histogram: parallel_A_histogram.c
+bin/parallel/%: src/parallel/%.c
+	mkdir -p $(shell dirname $@)
 	icc -O3 -pthread -o $@ $^ $(CFLAGS)
 
-parallel_B_histogram: parallel_B_histogram.c
-	icc -pthread -O3 -o $@ $^ $(CFLAGS)
-
-parallel_C_histogram: parallel_C_histogram.c
-	icc -pthread -O3 -o $@ $^ $(CFLAGS)
-
-parallel_D_histogram: parallel_D_histogram.c
-	icc -pthread -O3 -o $@ $^ $(CFLAGS)
-
-parallel_mpi_E_histogram: parallel_mpi_E_histogram.c
+bin/parallel_mpi/%: src/parallel_mpi/%.c
+	mkdir -p $(shell dirname $@)
 	mpicc -O3 -o $@ $^ -limf -lm $(CFLAGS)
 
-parallel_mpi_F_histogram: parallel_mpi_F_histogram.c
-	mpicc -O3 -o $@ $^ -limf -lm $(CFLAGS)
+input: data/input/128.txt data/input/8192.txt data/input/524288.txt data/input/33554432.txt
 
-input_data_1024:
-	./gen_random_numbers.py --seed 42 --ofile input_data_1024 --number 1024 --max 255
+standard: data/standard/128.txt data/standard/8192.txt data/standard/524288.txt data/standard/33554432.txt
 
-run_4_parallel_mpi_E_histogram: parallel_mpi_E_histogram input_data_1024
-	mpiexec -npernode 4 --mca btl ^openib ./parallel_mpi_E_histogram input_data_1024 1024 255 1
+data/input/%.txt:
+	mkdir -p $(shell dirname $@)
+	./gen_random_numbers.py --seed 42 --ofile $@ --number $(shell basename -s .txt $@) --max 255
+
+data/standard/%.txt: bin/serial/histogram data/input/%.txt
+	mkdir -p $(shell dirname $@)
+	$^ $(shell basename -s .txt $@) 255 1 > $@
+
+# bin/run_4_parallel_mpi_E_histogram: parallel_mpi_E_histogram input_data_1024
+# 	mpiexec -npernode 4 --mca btl ^openib ./parallel_mpi_E_histogram input_data_1024 1024 255 1
 
 clean:
-	rm -f serial_histogram parallel_A_histogram parallel_B_histogram parallel_C_histogram parallel_D_histogram parallel_mpi_E_histogram parallel_mpi_F_histogram input_data_1024
+	rm -rf bin/ data/standard/ data/parallel/ data/parallel_mpi/
