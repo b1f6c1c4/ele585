@@ -51,11 +51,10 @@ int main(int argc, char * argv[], char**envp)
     info.ndest = nbkt;
 
     sync_clock_t *sc = make_sync_clock(nth);
-    spawn_all(sc, &entry, &info);
-    start_executions(sc);
-    wait_all_executions(sc);
+    run_all(sc, &entry, &info);
 
     print_histogram(nbkt, histogram_array);
+
     print_time(sc);
     free_sync_clock(sc);
     check(pthread_mutex_destroy(&info.mu));

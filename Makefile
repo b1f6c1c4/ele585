@@ -32,7 +32,10 @@ define make-parallel
 
 data/parallel/$(X)/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 1 --ntasks-per-node=$(NT) -t 40:00 srun -o $$@ $$^ $(N) 255 $(NT)
+	salloc -N 1 --ntasks-per-node=$(NT) -t 40:00 -J $(X)-$(NT)-$(N) \
+		srun -o $$@ $$^ $(N) 255 $(NT)
+
+test-$(X)-$(NT): data/parallel/$(X)/$(NT)/$(N).txt
 
 test-$(X): data/parallel/$(X)/$(NT)/$(N).txt
 

@@ -68,7 +68,7 @@ void *thread_start(void *args)
     return NULL;
 }
 
-void spawn_all(sync_clock_t *sc, void (*entry)(int, void *), void *arg)
+void run_all(sync_clock_t *sc, void (*entry)(int, void *), void *arg)
 {
     int i;
     for (i = 0; i < sc->total; i++)
@@ -81,10 +81,7 @@ void spawn_all(sync_clock_t *sc, void (*entry)(int, void *), void *arg)
 
         check(pthread_create(&sc->tinfos[i].pth, NULL, &thread_start, tinfo));
     }
-}
 
-void start_executions(sync_clock_t *sc)
-{
     // Wait for all threads to be ready
     check(pthread_mutex_lock(&sc->after_mp));
     while (sc->running != sc->total)
@@ -99,10 +96,7 @@ void start_executions(sync_clock_t *sc)
 
     // Get the starting time
     clock_gettime(CLOCK_REALTIME, &sc->t1);
-}
 
-void wait_all_executions(sync_clock_t *sc)
-{
     // Wait for all threads to be finished
     check(pthread_mutex_lock(&sc->after_mp));
     while (!sc->started || sc->running != 0)
@@ -113,7 +107,6 @@ void wait_all_executions(sync_clock_t *sc)
     clock_gettime(CLOCK_REALTIME, &sc->t2);
 
     // Join all threads
-    int i;
     for (i = 0; i < sc->total; i++)
         check(pthread_join(sc->tinfos[i].pth, NULL));
 }

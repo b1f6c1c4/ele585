@@ -26,9 +26,7 @@ void check(int ret);
 
 sync_clock_t *make_sync_clock(int nth);
 void free_sync_clock(sync_clock_t *sc); // NOT responsible for tinfos[].arg
-void spawn_all(sync_clock_t *sc, void (*entry)(int, void *), void *arg);
-void start_executions(sync_clock_t *sc);
-void wait_all_executions(sync_clock_t *sc);
+void run_all(sync_clock_t *sc, void (*entry)(int, void *), void *arg);
 
 void load_data(char * file_name, long long input_data_length, unsigned char ** parsed_array, int number_buckets);
 void compute_histogram_serial(long long ** output_data, unsigned char * input_data, long long input_data_length, int number_buckets, int number_threads);
