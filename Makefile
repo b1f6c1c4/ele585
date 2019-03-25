@@ -8,7 +8,7 @@ bin/serial/%: src/serial/%.c
 	mkdir -p $(shell dirname $@)
 	icc -O3 -o $@ $^ $(CFLAGS)
 
-bin/parallel/%: src/parallel/%.c
+bin/parallel/%: src/parallel/%.c src/parallel/util.c src/parallel/util.h
 	mkdir -p $(shell dirname $@)
 	icc -O3 -pthread -o $@ $^ $(CFLAGS)
 
