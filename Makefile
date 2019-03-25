@@ -19,6 +19,15 @@ bin/parallel_mpi/%: src/parallel_mpi/%.c
 clean:
 	rm -rf bin/ data/standard/ data/parallel/ data/parallel_mpi/
 
+define make-debug
+
+debug-$(X)-$(NT): bin/parallel/$(X) data/input/128.txt
+	$$^ 128 255 $(NT)
+
+endef
+
+$(foreach NT,1 2 4 8 16 32 64,$(foreach X,A B C D E,$(eval $(make-debug))))
+
 define make-parallel
 
 data/parallel/$(X)/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt
