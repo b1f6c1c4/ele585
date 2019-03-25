@@ -4,13 +4,26 @@
 
 typedef struct
 {
-    int data;
+    pthread_mutex_t mu;
+    int nth;
+    unsigned char *src;
+    int nsrc;
+    long long *dest;
+    int ndest;
 } info_t;
 
-void entry(int nth, void *info_)
+void entry(int ith, void *info_)
 {
     info_t *info = (info_t *)(info_);
-    printf("I'm %d of %d\n", nth, info->data);
+    int nsrc = info->nsrc / info->nth;
+    unsigned char *src = info->src + nsrc * ith;
+
+    while (nsrc--)
+    {
+        check(pthread_mutex_lock(&info->mu));
+        info->dest[*src++]++;
+        check(pthread_mutex_unlock(&info->mu));
+    }
 }
 
 int main(int argc, char * argv[], char**envp)
@@ -27,17 +40,23 @@ int main(int argc, char * argv[], char**envp)
     int nth = atoi(argv[4]);
 
     load_data(argv[1], nin, &data_array, nbkt);
+    histogram_array = calloc(nbkt, sizeof(long long));
 
     info_t info;
-    info.data = 233;
+    check(pthread_mutex_init(&info.mu, NULL));
+    info.nth = nth;
+    info.src = data_array;
+    info.nsrc = nin;
+    info.dest = histogram_array;
+    info.ndest = nbkt;
 
     sync_clock_t *sc = make_sync_clock(nth);
     spawn_all(sc, &entry, &info);
     start_executions(sc);
-    // compute_histogram_serial(&histogram_array, data_array, nin, nbkt, nth);
     wait_all_executions(sc);
 
-    // print_histogram(nbkt, histogram_array);
+    print_histogram(nbkt, histogram_array);
     print_time(sc);
     free_sync_clock(sc);
+    check(pthread_mutex_destroy(&info.mu));
 }

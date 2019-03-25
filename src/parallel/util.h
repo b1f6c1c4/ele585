@@ -22,6 +22,8 @@ struct sync_clock_t_
 typedef struct tinfo_t_ tinfo_t;
 typedef struct sync_clock_t_ sync_clock_t;
 
+void check(int ret);
+
 sync_clock_t *make_sync_clock(int nth);
 void free_sync_clock(sync_clock_t *sc); // NOT responsible for tinfos[].arg
 void spawn_all(sync_clock_t *sc, void (*entry)(int, void *), void *arg);
