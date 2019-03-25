@@ -16,9 +16,6 @@ bin/parallel_mpi/%: src/parallel_mpi/%.c
 	mkdir -p $(shell dirname $@)
 	mpicc -O3 -o $@ $^ -limf -lm $(CFLAGS)
 
-# bin/run_4_parallel_mpi_E_histogram: parallel_mpi_E_histogram input_data_1024
-# 	mpiexec -npernode 4 --mca btl ^openib ./parallel_mpi_E_histogram input_data_1024 1024 255 1
-
 clean:
 	rm -rf bin/ data/standard/ data/parallel/ data/parallel_mpi/
 
@@ -26,8 +23,7 @@ define make-parallel
 
 data/parallel/$(X)/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	$$^ $(N) 255 $(NT) > $$@
-	[ -z "$$$$(diff $$@ data/input/$(N).txt)" ]
+	salloc -N 1 --ntasks-per-node=$(NT) -t 40:00 srun -o $$@ $$^ $(N) 255 $(NT)
 
 test-$(X): data/parallel/$(X)/$(NT)/$(N).txt
 
@@ -56,3 +52,9 @@ $$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,A B C D E,$$(eval $$(make-parallel))
 endef
 
 $(foreach N,128 8192 524288 33554432,$(eval $(make-input)))
+
+# bin/run_4_parallel_mpi_E_histogram: parallel_mpi_E_histogram input_data_1024
+# 	mpiexec -npernode 4 --mca btl ^openib ./parallel_mpi_E_histogram input_data_1024 1024 255 1
+
+# check:
+# [ -z "$$$$(diff $$@ data/standard/$(N).txt)" ]
