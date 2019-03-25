@@ -1,85 +1,81 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <time.h>
+#include "util.h"
 
-void load_data(char * file_name, long long input_data_length, unsigned char ** parsed_array, int number_buckets)
+typedef struct
 {
-    FILE * fr;
-    unsigned char * local_parsed_array = malloc(sizeof(unsigned char)*input_data_length);
-    char line[80];
-    assert(local_parsed_array != 0);
-    *parsed_array = local_parsed_array;
-    long long counter;
-    long data;
-    fr = fopen (file_name, "rt");
-    if(fr == 0)
-    {
-        printf("unable to open file %s\n", file_name);
-        exit(2);
-    }
-    assert(fr != 0);
-    for(counter = 0; counter < input_data_length; counter++)
-    {
-        assert(fgets(line, 80, fr) != 0);
-        assert(sscanf(line, "%ld", &data) != 0);
-        assert(data >= 0 && data < number_buckets);
-        local_parsed_array[counter] = (unsigned char) data;
-    }
-    fclose(fr);
-}
+    pthread_mutex_t mu;
+    long long dest;
+    char pad[12];
+} dst_t;
 
-void compute_histogram_serial(long long ** output_data, unsigned char * input_data, long long input_data_length, int number_buckets, int number_threads)
+typedef struct
 {
-    long long * local_output_data = malloc(sizeof(long long) * number_buckets);
-    assert(local_output_data != 0);
-    *output_data = local_output_data;
-    int counter_local;
-    for(counter_local = 0; counter_local < number_buckets; counter_local++)
-    {
-        local_output_data[counter_local] = 0;
-    }
-    long long counter;
-    for(counter = 0; counter < input_data_length; counter++)
-    {
-        local_output_data[input_data[counter]]++;
-    }
-}
+    int nth;
+    unsigned char *src;
+    int nsrc;
+    dst_t *dests;
+    int ndest;
+} info_t;
 
-void print_histogram(int number_buckets, long long * histogram)
+void entry(int ith, void *info_)
 {
-    int counter;
-    for(counter = 0; counter < number_buckets; counter++)
-    {
-        printf("%d: %ld\n", counter, histogram[counter]);
-    }
-}
+    info_t *info = (info_t *)(info_);
+    int nsrc = info->nsrc / info->nth;
+    unsigned char *src = info->src + nsrc * ith;
 
-void usage(int argc, char * argv[])
-{
-    printf("Usage: %s INPUT_FILE INPUT_LENGTH MAX_INPUT_NUMBER NUMBER_THREADS\n", argv[0]);
-    exit(2);
+    unsigned char v;
+    while (nsrc--)
+    {
+        v = *src++;
+        check(pthread_mutex_lock(&info->dests[v].mu));
+        info->dests[v].dest++;
+        check(pthread_mutex_unlock(&info->dests[v].mu));
+    }
 }
 
 int main(int argc, char * argv[], char**envp)
 {
+    if (sizeof(dst_t) != 64)
+    {
+        printf("sizeof(dst_t) == %d != 64", sizeof(dst_t));
+        return 233;
+    }
+
     unsigned char * data_array;
     long long * histogram_array;
-    struct timespec res, t1, t2;
     if(argc != 5)
     {
         usage(argc, argv);
     }
-    assert (atoi(argv[4]) == 1);
-    // FIXME, should have better error checking on these atoi's as atoi has
-    // bad error handling
-    load_data(argv[1], atoi(argv[2]), &data_array, atoi(argv[3])+1);
-    // Get the starting time
-    clock_gettime(CLOCK_REALTIME, &t1);
-    compute_histogram_serial(&histogram_array, data_array, atoi(argv[2]), atoi(argv[3])+1, atoi(argv[4]));
-    // Get the ending time
-    clock_gettime(CLOCK_REALTIME, &t2);
-    print_histogram(atoi(argv[3])+1, histogram_array);
-    // Print out the time taken
-    printf("### test took %1.31f seconds\n", (t2.tv_sec - t1.tv_sec)  + (float) (t2.tv_nsec - t1.tv_nsec) / 1000000000.0);
+
+    long long nin = atoi(argv[2]);
+    int nbkt = atoi(argv[3])+1;
+    int nth = atoi(argv[4]);
+
+    load_data(argv[1], nin, &data_array, nbkt);
+    histogram_array = calloc(nbkt, sizeof(long long));
+
+    info_t info;
+    int i;
+    info.dests = malloc(nbkt * sizeof(dst_t));
+    for (i = 0; i < nbkt; i++)
+        check(pthread_mutex_init(&info.dests[i].mu, NULL));
+    info.nth = nth;
+    info.src = data_array;
+    info.nsrc = nin;
+    info.ndest = nbkt;
+
+    sync_clock_t *sc = make_sync_clock(nth);
+    run_all(sc, &entry, &info);
+
+    for (i = 0; i < nbkt; i++)
+        histogram_array[i] = info.dests[i].dest;
+    print_histogram(nbkt, histogram_array);
+
+    print_time(sc);
+    free_sync_clock(sc);
+    for (i = 0; i < nbkt; i++)
+        check(pthread_mutex_destroy(&info.dests[i].mu));
+    free(info.dests);
 }
