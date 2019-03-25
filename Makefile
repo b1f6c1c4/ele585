@@ -1,4 +1,5 @@
-CFLAGS = -lrt
+CFLAGS=-lrt
+CPU=8
 
 .PRECIOUS: bin/serial/histogram
 
@@ -19,6 +20,20 @@ bin/parallel_mpi/%: src/parallel_mpi/%.c
 clean:
 	rm -rf bin/ data/standard/ data/parallel/ data/parallel_mpi/
 
+define make-report
+
+data/report/$(X).csv:
+	mkdir -p $$(shell dirname $$@)
+	grep -Po '\d\.\d+' $$^ | sed 's_^data/parallel/./__; s_/_,_; s_\.txt:_,_' > $$@
+
+test-$(X): data/report/$(X).csv
+
+test: test-$(X)
+
+endef
+
+$(foreach X,A B C D E,$(eval $(make-report)))
+
 define make-debug
 
 debug-$(X)-$(NT): bin/parallel/$(X) data/input/128.txt
@@ -32,14 +47,10 @@ define make-parallel
 
 data/parallel/$(X)/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 1 --ntasks-per-node=$(NT) -t 40:00 -J $(X)-$(NT)-$(N) \
-		srun -o $$@ $$^ $(N) 255 $(NT)
+	salloc -N 1 -n 1 --cpus-per-task=$(CPU) -t 40:00 -J $(X)-$(NT)-$(N) \
+		srun -o $$@ ./run.sh $(X) $(NT) $(N)
 
-test-$(X)-$(NT): data/parallel/$(X)/$(NT)/$(N).txt
-
-test-$(X): data/parallel/$(X)/$(NT)/$(N).txt
-
-test: test-$(X)
+data/report/$(X).csv: data/parallel/$(X)/$(NT)/$(N).txt
 
 endef
 
@@ -58,6 +69,7 @@ data/input/$(N).txt:
 data/standard/$(N).txt: bin/serial/histogram data/input/$(N).txt
 	mkdir -p $$(shell dirname $$@)
 	$$^ $(N) 255 1 > $$@
+	sed -i '$$$$ d' $$@
 
 $$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,A B C D E,$$(eval $$(make-parallel))))
 
