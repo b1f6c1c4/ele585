@@ -102,11 +102,15 @@ void run_all(sync_clock_t *sc, void (*entry)(int, void *), void *arg)
     while (!sc->started || sc->running != 0)
         check(pthread_cond_wait(&sc->after_cv, &sc->after_mp));
     check(pthread_mutex_unlock(&sc->after_mp));
+}
 
+void finalize(sync_clock_t *sc)
+{
     // Get the ending time
     clock_gettime(CLOCK_REALTIME, &sc->t2);
 
     // Join all threads
+    int i;
     for (i = 0; i < sc->total; i++)
         check(pthread_join(sc->tinfos[i].pth, NULL));
 }

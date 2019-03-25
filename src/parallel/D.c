@@ -68,6 +68,7 @@ int main(int argc, char * argv[], char**envp)
 
     sync_clock_t *sc = make_sync_clock(nth);
     run_all(sc, &entry, &info);
+    finalize(sc);
 
     for (i = 0; i < nbkt; i++)
         histogram_array[i] = info.dests[i].dest;

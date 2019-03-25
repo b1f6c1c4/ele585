@@ -57,6 +57,7 @@ int main(int argc, char * argv[], char**envp)
 
     sync_clock_t *sc = make_sync_clock(nth);
     run_all(sc, &entry, &info);
+    finalize(sc);
 
     print_histogram(nbkt, histogram_array);
 
