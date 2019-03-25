@@ -24,7 +24,7 @@ define make-report
 
 data/report/$(X).csv:
 	mkdir -p $$(shell dirname $$@)
-	grep -Po '\d\.\d+' $$^ | sed 's_^data/parallel/./__; s_/_,_; s_\.txt:_,_' > $$@
+	grep -Po '\d\.\d+' $$^ | sed 's_^data/parallel/./__; s_/_,_g; s_\.txt:_,_' > $$@
 
 test-$(X): data/report/$(X).csv
 
@@ -45,12 +45,17 @@ $(foreach NT,1 2 4 8 16 32 64,$(foreach X,A B C D E,$(eval $(make-debug))))
 
 define make-parallel
 
-data/parallel/$(X)/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt
+data/parallel/$(X)/balanced/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt data/standard/balanced/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 1 -n 1 --cpus-per-task=$(CPU) -t 40:00 -J $(X)-$(NT)-$(N) \
-		srun -o $$@ ./run.sh $(X) $(NT) $(N)
+	salloc -N 1 -n 1 --cpus-per-task=$(CPU) -t 40:00 -J $(X)-b$(NT)-$(N) \
+		srun -o $$@ ./run.sh $(X) $(NT) $(N) 255
 
-data/report/$(X).csv: data/parallel/$(X)/$(NT)/$(N).txt
+data/parallel/$(X)/unbalanced/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt data/standard/unbalanced/$(N).txt
+	mkdir -p $$(shell dirname $$@)
+	salloc -N 1 -n 1 --cpus-per-task=$(CPU) -t 40:00 -J $(X)-u$(NT)-$(N) \
+		srun -o $$@ ./run.sh $(X) $(NT) $(N) 511
+
+data/report/$(X).csv: data/parallel/$(X)/balanced/$(NT)/$(N).txt data/parallel/$(X)/unbalanced/$(NT)/$(N).txt
 
 endef
 
@@ -60,15 +65,20 @@ define make-input
 
 input: data/input/$(N).txt
 
-standard: data/standard/$(N).txt
+standard: data/standard/balanced/$(N).txt data/standard/unbalanced/$(N).txt
 
 data/input/$(N).txt:
 	mkdir -p $$(shell dirname $$@)
 	./gen_random_numbers.py --seed 42 --ofile $$@ --number $(N) --max 255
 
-data/standard/$(N).txt: bin/serial/histogram data/input/$(N).txt
+data/standard/balanced/$(N).txt: bin/serial/histogram data/input/$(N).txt
 	mkdir -p $$(shell dirname $$@)
 	$$^ $(N) 255 1 > $$@
+	sed -i '$$$$ d' $$@
+
+data/standard/unbalanced/$(N).txt: bin/serial/histogram data/input/$(N).txt
+	mkdir -p $$(shell dirname $$@)
+	$$^ $(N) 511 1 > $$@
 	sed -i '$$$$ d' $$@
 
 $$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,A B C D E,$$(eval $$(make-parallel))))
@@ -79,6 +89,3 @@ $(foreach N,128 8192 524288 33554432,$(eval $(make-input)))
 
 # bin/run_4_parallel_mpi_E_histogram: parallel_mpi_E_histogram input_data_1024
 # 	mpiexec -npernode 4 --mca btl ^openib ./parallel_mpi_E_histogram input_data_1024 1024 255 1
-
-# check:
-# [ -z "$$$$(diff $$@ data/standard/$(N).txt)" ]

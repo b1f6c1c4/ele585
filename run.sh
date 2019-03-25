@@ -3,18 +3,23 @@
 X="$1"
 NT="$2"
 N="$3"
+MX="$4"
 
 BIN="./bin/parallel/$X"
 IN="./data/input/$N.txt"
-STD="./data/standard/$N.txt"
+if [ "$MX" -eq "255" ]; then
+    STD="./data/standard/balanced/$N.txt"
+else
+    STD="./data/standard/unbalanced/$N.txt"
+fi
 
-WKDIR="/scratch/jinzheng/ele585/$X-$NT-$N"
+WKDIR="/scratch/jinzheng/ele585/$X-$NT-$N-$MX"
 T="$WKDIR/tmp.txt"
 mkdir -p "$WKDIR"
 
 I=0
 while [ "$I" -lt "10" ]; do
-    "$BIN" "$IN" "$N" 255 "$NT" > "$T"
+    "$BIN" "$IN" "$N" "$MX" "$NT" > "$T"
     RET="$?"
     if [ "$RET" -ne "0" ]; then
         echo ">> Pass $I: Error $RET"

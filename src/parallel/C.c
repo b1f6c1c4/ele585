@@ -14,8 +14,8 @@ typedef struct
 void entry(int ith, void *info_)
 {
     info_t *info = (info_t *)(info_);
-    unsigned char ndest = info->ndest / info->nth;
-    unsigned char lb = ndest * ith;
+    int ndest = info->ndest / info->nth;
+    int lb = ndest * ith;
     unsigned char *src = info->src;
     int nsrc = info->nsrc;
 
@@ -23,9 +23,8 @@ void entry(int ith, void *info_)
     while (nsrc--)
     {
         v = *src++;
-        if (info->nth != 1)
-            if (v < lb || v >= lb + ndest)
-                continue;
+        if (v < lb || v >= lb + ndest)
+            continue;
         info->dest[v]++;
     }
 }
