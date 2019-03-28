@@ -18,7 +18,7 @@ T="$WKDIR/tmp.txt"
 mkdir -p "$WKDIR"
 
 I=0
-while [ "$I" -lt "10" ]; do
+while [ "$I" -lt "500" ]; do
     "$BIN" "$IN" "$N" "$MX" "$NT" > "$T"
     RET="$?"
     if [ "$RET" -ne "0" ]; then

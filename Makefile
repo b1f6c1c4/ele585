@@ -47,12 +47,12 @@ define make-parallel
 
 data/parallel/$(X)/balanced/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt data/standard/balanced/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 1 -n 1 --cpus-per-task=$(CPU) -t 40:00 -J $(X)-b$(NT)-$(N) \
+	salloc -N 1 -n 1 --cpus-per-task=$(CPU) -t 4:00:00 -J $(X)-b$(NT)-$(N) \
 		srun -o $$@ ./run.sh $(X) $(NT) $(N) 255
 
 data/parallel/$(X)/unbalanced/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt data/standard/unbalanced/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 1 -n 1 --cpus-per-task=$(CPU) -t 40:00 -J $(X)-u$(NT)-$(N) \
+	salloc -N 1 -n 1 --cpus-per-task=$(CPU) -t 4:00:00 -J $(X)-u$(NT)-$(N) \
 		srun -o $$@ ./run.sh $(X) $(NT) $(N) 511
 
 data/report/$(X).csv: data/parallel/$(X)/balanced/$(NT)/$(N).txt data/parallel/$(X)/unbalanced/$(NT)/$(N).txt
