@@ -41,7 +41,15 @@ debug-$(X)-$(NT): bin/parallel/$(X) data/input/128.txt
 
 endef
 
+define make-debug-mpi
+
+debug-$(X)-$(NT): bin/parallel_mpi/$(X) data/input/128.txt
+	mpiexec -npernode $(NT) --mca btl ^openib $$^ 128 255 1
+
+endef
+
 $(foreach NT,1 2 4 8 16 32 64,$(foreach X,A B C D E,$(eval $(make-debug))))
+$(foreach NT,1 2 4 8 16 32 64,$(foreach X,F G H,$(eval $(make-debug-mpi))))
 
 define make-parallel
 
@@ -56,6 +64,22 @@ data/parallel/$(X)/unbalanced/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).
 		srun -o $$@ ./run.sh $(X) $(NT) $(N) 511
 
 data/report/$(X).csv: data/parallel/$(X)/balanced/$(NT)/$(N).txt data/parallel/$(X)/unbalanced/$(NT)/$(N).txt
+
+endef
+
+define make-parallel-mpi
+
+data/parallel_mpi/$(X)/balanced/$(NT)/$(N).txt: bin/parallel_mpi/$(X) data/input/$(N).txt data/standard/balanced/$(N).txt
+	mkdir -p $$(shell dirname $$@)
+	salloc -N 1 -n $(NT) --cpus-per-task=1 -t 4:00:00 -J $(X)-b$(NT)-$(N) \
+		./run-mpi.sh $(X) $(NT) $(N) 255 > $$@
+
+data/parallel_mpi/$(X)/unbalanced/$(NT)/$(N).txt: bin/parallel_mpi/$(X) data/input/$(N).txt data/standard/unbalanced/$(N).txt
+	mkdir -p $$(shell dirname $$@)
+	salloc -N 1 -n $(NT) --cpus-per-task=1 -t 4:00:00 -J $(X)-u$(NT)-$(N) \
+		./run-mpi.sh $(X) $(NT) $(N) 511 > $$@
+
+data/report/$(X).csv: data/parallel_mpi/$(X)/balanced/$(NT)/$(N).txt data/parallel_mpi/$(X)/unbalanced/$(NT)/$(N).txt
 
 endef
 
@@ -82,6 +106,7 @@ data/standard/unbalanced/$(N).txt: bin/serial/histogram data/input/$(N).txt
 	sed -i '$$$$ d' $$@
 
 $$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,A B C D E,$$(eval $$(make-parallel))))
+$$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,F G H,$$(eval $$(make-parallel-mpi))))
 
 endef
 

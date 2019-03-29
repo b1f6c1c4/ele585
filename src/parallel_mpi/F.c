@@ -5,7 +5,7 @@
 
 #include <mpi.h>
 
-int myid;
+int myid = -1;
 
 void load_data(char * file_name, long long input_data_length, unsigned char ** parsed_array, int number_buckets)
 {
@@ -69,65 +69,82 @@ void usage(int argc, char * argv[])
     exit(2);
 }
 
+#define TAG_RESULT 0xdead
+
+void entry(int ith, int nth, unsigned char *src_, int nsrc_, long long *dest, int ndest)
+{
+    int nsrc = nsrc_ / nth;
+    unsigned char *src = src_ + nsrc * ith;
+    int ext = nsrc_ - nsrc * nth;
+    if (ith >= nth - ext)
+        src += ith - (nth - ext), nsrc++;
+
+    while (nsrc--)
+        dest[*src++]++;
+}
+
 int main(int argc, char * argv[], char**envp)
 {
+    struct timespec t1, t2;
     unsigned char * data_array;
     long long * histogram_array;
-    struct timespec res, t1, t2;
-    int number_nodes;
-    int counter;
-    int dummy_send = 42;
-    int dummy_recv = 0;
-    int dummy_recv2 = 0;
-    int tag = 580;
-    MPI_Status dummy_status;
-    MPI_Status status;
-    MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &number_nodes);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     if(argc != 5)
     {
         usage(argc, argv);
     }
-    assert (atoi(argv[4]) == 1);
-    // FIXME, should have better error checking on these atoi's as atoi has
-    // bad error handling
-    load_data(argv[1], atoi(argv[2]), &data_array, atoi(argv[3])+1);
 
-    if(myid ==0)
+    long long nin = atoi(argv[2]);
+    int nbkt = atoi(argv[3])+1;
+    int nth = atoi(argv[4]);
+    assert(nth == 1);
+
+    load_data(argv[1], nin, &data_array, nbkt);
+    histogram_array = calloc(nbkt, sizeof(long long));
+
+    int i, j;
+    int number_nodes;
+    MPI_Status ret;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &number_nodes);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+    int rx, tx;
+
+    if(myid == 0)
     {
-        // Get the starting time
+        long long *rx = malloc(nbkt * sizeof(long long));
+        MPI_Barrier(MPI_COMM_WORLD);
+
         clock_gettime(CLOCK_REALTIME, &t1);
-        for(counter = 1; counter < number_nodes; counter++)
+
+        entry(myid, number_nodes, data_array, nin, histogram_array, nbkt);
+
+        for (i = 1; i < number_nodes; i++)
         {
-            MPI_Send(&dummy_send, 1, MPI_INT, counter, tag, MPI_COMM_WORLD);
+            MPI_Recv(rx, nbkt, MPI_LONG_LONG_INT, MPI_ANY_SOURCE, TAG_RESULT, MPI_COMM_WORLD, &ret);
+            for (j = 0; j < nbkt; j++)
+                histogram_array[j] += rx[j];
         }
-        compute_histogram_serial(&histogram_array, data_array, atoi(argv[2]), atoi(argv[3])+1, atoi(argv[4]));
-        for(counter = 1; counter < number_nodes; counter++)
-        {
-            dummy_recv = 0;
-            MPI_Recv(&dummy_recv, 1, MPI_INT, counter, tag, MPI_COMM_WORLD, &dummy_status);
-            assert (dummy_recv == 42);
-        }
-        // Get the ending time
+
         clock_gettime(CLOCK_REALTIME, &t2);
-        print_histogram(atoi(argv[3])+1, histogram_array);
+        free(rx);
+
+        print_histogram(nbkt, histogram_array);
+        printf("### test took %1.31f seconds\n", (t2.tv_sec - t1.tv_sec)  + (float) (t2.tv_nsec - t1.tv_nsec) / 1000000000.0);
+
+        MPI_Barrier(MPI_COMM_WORLD);
     }
     else
     {
-        MPI_Recv(&dummy_recv, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &dummy_status);
-        MPI_Send(&dummy_recv, 1, MPI_INT, 0, tag, MPI_COMM_WORLD);
-        MPI_Recv(&dummy_recv2, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &dummy_status);
-        printf("node %d recv and sent %d\n", myid, dummy_recv);
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        entry(myid, number_nodes, data_array, nin, histogram_array, nbkt);
+
+        MPI_Send(histogram_array, nbkt, MPI_LONG_LONG_INT, 0, TAG_RESULT, MPI_COMM_WORLD);
+
+        MPI_Barrier(MPI_COMM_WORLD);
     }
-    // Print out the time taken
-    if(myid == 0)
-    {
-        printf("### test took %1.31f seconds\n", (t2.tv_sec - t1.tv_sec)  + (float) (t2.tv_nsec - t1.tv_nsec) / 1000000000.0);
-        for(counter = 1; counter < number_nodes; counter++)
-        {
-            MPI_Send(&dummy_send, 1, MPI_INT, counter, tag, MPI_COMM_WORLD);
-        }
-    }
+
     MPI_Finalize();
 }
