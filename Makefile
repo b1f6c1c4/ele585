@@ -32,7 +32,20 @@ test: test-$(X)
 
 endef
 
+define make-report-mpi
+
+data/report/$(X).csv:
+	mkdir -p $$(shell dirname $$@)
+	grep -Po '\d\.\d+' $$^ | sed 's_^data/parallel_mpi/./__; s_/_,_g; s_\.txt:_,_' > $$@
+
+test-$(X): data/report/$(X).csv
+
+test: test-$(X)
+
+endef
+
 $(foreach X,A B C D E,$(eval $(make-report)))
+$(foreach X,F G H,$(eval $(make-report-mpi)))
 
 define make-debug
 
@@ -49,7 +62,8 @@ debug-$(X)-$(NT): bin/parallel_mpi/$(X) data/input/128.txt
 endef
 
 $(foreach NT,1 2 4 8 16 32 64,$(foreach X,A B C D E,$(eval $(make-debug))))
-$(foreach NT,1 2 4 8 16 32 64,$(foreach X,F G H,$(eval $(make-debug-mpi))))
+$(foreach NT,1 2 4 8 16 32 64,$(foreach X,F H,$(eval $(make-debug-mpi))))
+$(foreach NT,4 8 16 32 64,$(foreach X,G,$(eval $(make-debug-mpi))))
 
 define make-parallel
 
@@ -106,7 +120,8 @@ data/standard/unbalanced/$(N).txt: bin/serial/histogram data/input/$(N).txt
 	sed -i '$$$$ d' $$@
 
 $$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,A B C D E,$$(eval $$(make-parallel))))
-$$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,F G H,$$(eval $$(make-parallel-mpi))))
+$$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,F H,$$(eval $$(make-parallel-mpi))))
+$$(foreach NT,4 8 16 32 64,$$(foreach X,G,$$(eval $$(make-parallel-mpi))))
 
 endef
 

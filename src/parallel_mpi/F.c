@@ -109,9 +109,9 @@ int main(int argc, char * argv[], char**envp)
     MPI_Comm_size(MPI_COMM_WORLD, &number_nodes);
     MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-    int rx, tx;
+    int rx;
 
-    if(myid == 0)
+    if (myid == 0)
     {
         long long *rx = malloc(nbkt * sizeof(long long));
         MPI_Barrier(MPI_COMM_WORLD);
