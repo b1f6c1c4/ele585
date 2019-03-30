@@ -5,7 +5,11 @@ NT="$2"
 N="$3"
 MX="$4"
 
-BIN="./bin/parallel_mpi/$X"
+if [ "$X" = "H" ]; then
+    BIN="./bin/parallel_mpi/F"
+else
+    BIN="./bin/parallel_mpi/$X"
+fi
 IN="./data/input/$N.txt"
 if [ "$MX" -eq "255" ]; then
     STD="./data/standard/balanced/$N.txt"
@@ -19,7 +23,7 @@ mkdir -p "$WKDIR"
 
 I=0
 while [ "$I" -lt "500" ]; do
-    srun "$BIN" "$IN" "$N" "$MX" "$NT" > "$T"
+    srun -n "$NT" "$BIN" "$IN" "$N" "$MX" 1 > "$T"
     RET="$?"
     if [ "$RET" -ne "0" ]; then
         cat "$T"

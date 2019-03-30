@@ -33,5 +33,7 @@ data$n <- factor(data$ninputs);
 data$t <- factor(data$threads);
 
 gdata <- data %>% group_by(method, ninputs, balanced, threads) %>% summarise_at(vars(time, atime, antime), mean);
+gdata$n <- factor(gdata$ninputs);
+gdata$t <- factor(gdata$threads);
 
 ggplot(data, aes(x=t, y=log10(atime), color=n)) + facet_grid(balanced ~ method) + geom_jitter(width=0.25, height=0)

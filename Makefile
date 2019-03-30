@@ -97,6 +97,22 @@ data/report/$(X).csv: data/parallel_mpi/$(X)/balanced/$(NT)/$(N).txt data/parall
 
 endef
 
+define make-parallel-mpi-H
+
+data/parallel_mpi/H/balanced/$(NT)/$(N).txt: bin/parallel_mpi/F data/input/$(N).txt data/standard/balanced/$(N).txt
+	mkdir -p $$(shell dirname $$@)
+	salloc -N 2 -n $(NT) --cpus-per-task=1 --ntasks-per-node=$$$$(($(NT)/2)) -t 4:00:00 -J H-b$(NT)-$(N) \
+		./run-mpi.sh H $(NT) $(N) 255 > $$@
+
+data/parallel_mpi/H/unbalanced/$(NT)/$(N).txt: bin/parallel_mpi/F data/input/$(N).txt data/standard/unbalanced/$(N).txt
+	mkdir -p $$(shell dirname $$@)
+	salloc -N 2 -n $(NT) --cpus-per-task=1 --ntasks-per-node=$$$$(($(NT)/2)) -t 4:00:00 -J H-u$(NT)-$(N) \
+		./run-mpi.sh H $(NT) $(N) 511 > $$@
+
+data/report/H.csv: data/parallel_mpi/H/balanced/$(NT)/$(N).txt data/parallel_mpi/H/unbalanced/$(NT)/$(N).txt
+
+endef
+
 define make-input
 
 .PRECIOUS: data/input/$(N).txt
@@ -120,8 +136,9 @@ data/standard/unbalanced/$(N).txt: bin/serial/histogram data/input/$(N).txt
 	sed -i '$$$$ d' $$@
 
 $$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,A B C D E,$$(eval $$(make-parallel))))
-$$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,F H,$$(eval $$(make-parallel-mpi))))
+$$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,F,$$(eval $$(make-parallel-mpi))))
 $$(foreach NT,4 8 16 32 64,$$(foreach X,G,$$(eval $$(make-parallel-mpi))))
+$$(foreach NT,2 4 8 16 32 64,$$(foreach X,H,$$(eval $$(make-parallel-mpi-H))))
 
 endef
 
