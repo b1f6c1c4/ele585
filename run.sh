@@ -17,8 +17,18 @@ WKDIR="/scratch/jinzheng/ele585/$X-$NT-$N-$MX"
 T="$WKDIR/tmp.txt"
 mkdir -p "$WKDIR"
 
+if [ "$N" -le "128" ]; then
+    ITER=$((1024 / $NT))
+elif [ "$N" -le "8192" ]; then
+    ITER=500
+elif [ "$N" -le "524288" ]; then
+    ITER=100
+else # if [ "$N" -le "33554432" ]; then
+    ITER=50
+fi
+
 I=0
-while [ "$I" -lt "500" ]; do
+while [ "$I" -lt "$ITER" ]; do
     "$BIN" "$IN" "$N" "$MX" "$NT" > "$T"
     RET="$?"
     if [ "$RET" -ne "0" ]; then

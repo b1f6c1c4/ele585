@@ -20,11 +20,17 @@ bin/parallel_mpi/%: src/parallel_mpi/%.c
 clean:
 	rm -rf bin/ data/standard/ data/parallel/ data/parallel_mpi/
 
+pdf: script/plot.R
+	mkdir -p data/report/
+	Rscript --vanilla $<
+
 define make-report
 
 data/report/$(X).csv:
 	mkdir -p $$(shell dirname $$@)
 	grep -Po '\d\.\d+' $$^ | sed 's_^data/parallel/./__; s_/_,_g; s_\.txt:_,_' > $$@
+
+pdf: data/report/$(X).csv
 
 test-$(X): data/report/$(X).csv
 
@@ -36,7 +42,9 @@ define make-report-mpi
 
 data/report/$(X).csv:
 	mkdir -p $$(shell dirname $$@)
-	grep -Po '\d\.\d+' $$^ | sed 's_^data/parallel_mpi/./__; s_/_,_g; s_\.txt:_,_' > $$@
+	grep -Po '\d\.\d+' $$^ | sed 's_^data/parallel\_mpi/./__; s_/_,_g; s_\.txt:_,_' > $$@
+
+pdf: data/report/$(X).csv
 
 test-$(X): data/report/$(X).csv
 
@@ -69,12 +77,12 @@ define make-parallel
 
 data/parallel/$(X)/balanced/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt data/standard/balanced/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 1 -n 1 --cpus-per-task=$(CPU) -t 4:00:00 -J $(X)-b$(NT)-$(N) \
+	salloc -N 1 -n 1 --cpus-per-task=$$$$(($(NT)>$(CPU)?$(CPU):$(NT))) -t 4:00:00 -J $(X)-b$(NT)-$(N) \
 		srun -o $$@ ./run.sh $(X) $(NT) $(N) 255
 
 data/parallel/$(X)/unbalanced/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt data/standard/unbalanced/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 1 -n 1 --cpus-per-task=$(CPU) -t 4:00:00 -J $(X)-u$(NT)-$(N) \
+	salloc -N 1 -n 1 --cpus-per-task=$$$$(($(NT)>$(CPU)?$(CPU):$(NT))) -t 4:00:00 -J $(X)-u$(NT)-$(N) \
 		srun -o $$@ ./run.sh $(X) $(NT) $(N) 511
 
 data/report/$(X).csv: data/parallel/$(X)/balanced/$(NT)/$(N).txt data/parallel/$(X)/unbalanced/$(NT)/$(N).txt
@@ -136,13 +144,10 @@ data/standard/unbalanced/$(N).txt: bin/serial/histogram data/input/$(N).txt
 	sed -i '$$$$ d' $$@
 
 $$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,A B C D E,$$(eval $$(make-parallel))))
-$$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,F,$$(eval $$(make-parallel-mpi))))
-$$(foreach NT,4 8 16 32 64,$$(foreach X,G,$$(eval $$(make-parallel-mpi))))
-$$(foreach NT,2 4 8 16 32 64,$$(foreach X,H,$$(eval $$(make-parallel-mpi-H))))
+$$(foreach NT,1 2 4 8,$$(foreach X,F,$$(eval $$(make-parallel-mpi))))
+$$(foreach NT,4 8,$$(foreach X,G,$$(eval $$(make-parallel-mpi))))
+$$(foreach NT,2 4 8,$$(foreach X,H,$$(eval $$(make-parallel-mpi-H))))
 
 endef
 
 $(foreach N,128 8192 524288 33554432,$(eval $(make-input)))
-
-# bin/run_4_parallel_mpi_E_histogram: parallel_mpi_E_histogram input_data_1024
-# 	mpiexec -npernode 4 --mca btl ^openib ./parallel_mpi_E_histogram input_data_1024 1024 255 1
