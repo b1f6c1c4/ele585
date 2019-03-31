@@ -20,9 +20,11 @@ bin/parallel_mpi/%: src/parallel_mpi/%.c
 clean:
 	rm -rf bin/ data/standard/ data/parallel/ data/parallel_mpi/
 
-pdf: script/plot.R
+data/report/final.pdf: script/plot.R
 	mkdir -p data/report/
 	Rscript --vanilla $<
+
+pdf: data/report/final.pdf
 
 define make-report
 
@@ -30,7 +32,7 @@ data/report/$(X).csv:
 	mkdir -p $$(shell dirname $$@)
 	grep -Po '\d\.\d+' $$^ | sed 's_^data/parallel/./__; s_/_,_g; s_\.txt:_,_' > $$@
 
-pdf: data/report/$(X).csv
+data/report/final.pdf: data/report/$(X).csv
 
 test-$(X): data/report/$(X).csv
 
@@ -44,7 +46,7 @@ data/report/$(X).csv:
 	mkdir -p $$(shell dirname $$@)
 	grep -Po '\d\.\d+' $$^ | sed 's_^data/parallel\_mpi/./__; s_/_,_g; s_\.txt:_,_' > $$@
 
-pdf: data/report/$(X).csv
+data/report/final.pdf: data/report/$(X).csv
 
 test-$(X): data/report/$(X).csv
 

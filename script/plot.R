@@ -52,20 +52,22 @@ data$t <- factor(data$threads);
 rawdata <- data;
 data <- rawdata %>%
     group_by(method, ninputs, balance, threads) %>%
-    filter((speed > quantile(speed, 0.05)) & (speed < quantile(speed, 0.95)));
+    filter((speed > quantile(speed, 0.02)) & (speed < quantile(speed, 0.98))) %>%
+    filter(abs(speed - quantile(speed, 0.5)) < 2 * sd(speed));
 
 makepdf <- function(i) {
-    pdf(sprintf("data/report/%d.pdf", i), 10, 12);
-    ggplot(subset(data, ninputs==i), aes(x=t, y=speed, fill=balance)) +
-    facet_wrap(. ~ method, scales="free_y", ncol=2) +
-    geom_violin(scale="width", position="dodge") +
-    expand_limits(y=0) +
-    xlab("Number of Threads") + ylab("Speed (MOps)") +
-    ggtitle(sprintf("Input size = %d", i));
-    dev.off();
+    d <- subset(data, ninputs==i);
+    ggplot(d, aes(x=t, y=speed, fill=balance)) +
+        facet_wrap(. ~ method, scales="free_y", ncol=2) +
+        geom_violin(scale="width", position="dodge") +
+        expand_limits(y=0) +
+        xlab("Number of Threads") + ylab("Speed (MOps)") +
+        ggtitle(sprintf("Input size = %d", i));
 };
 
+pdf("data/report/final.pdf", 10, 12);
 makepdf(128);
 makepdf(8192);
 makepdf(524288);
 makepdf(33554432);
+dev.off();
