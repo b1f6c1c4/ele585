@@ -8,10 +8,8 @@ CPU="$5"
 
 if [ "$X" = "H" ]; then
     BIN="./bin/parallel_mpi/F"
-    NX=2
 else
     BIN="./bin/parallel_mpi/$X"
-    NX=1
 fi
 IN="./data/input/$N.txt"
 if [ "$MX" -eq "255" ]; then
@@ -36,13 +34,7 @@ fi
 
 I=0
 while [ "$I" -lt "$ITER" ]; do
-    # if [ "$NT" -gt "$CPU" ]; then
-    #     srun -n "$NX" "$BIN" -n "$(($NT/$NX))" --oversubscribe "$IN" "$N" "$MX" 1 > "$T"
-    # else
-    #     srun -n "$NX" "$BIN" -n "$(($NT/$NX))" "$IN" "$N" "$MX" 1 > "$T"
-    # fi
-    srun -o "$T" -n "$NX" --cpus-per-task=$(($NT>$CPU?$CPU/$NX:$NT/$NX)) \
-        mpiexec -n "$(($NT/$NX))" --oversubscribe "$BIN" "$IN" "$N" "$MX" 1
+    mpiexec -n "$NT" --oversubscribe "$BIN" "$IN" "$N" "$MX" 1 >"$T"
     RET="$?"
     if [ "$RET" -ne "0" ]; then
         cat "$T"
@@ -51,9 +43,9 @@ while [ "$I" -lt "$ITER" ]; do
     fi
     sed '$ d' "$T" | cmp --silent - "$STD" >/dev/null
     if [ "$?" -eq "0" ]; then
-        echo ">> Pass $I: Good" 1>&2
+        echo ">> Pass $I: Good"
     else
-        echo ">> Pass $I: Fail" 1>&2
+        echo ">> Pass $I: Fail"
         cat "$T"
         rm -f "$T"
         rmdir "$WKDIR" || true

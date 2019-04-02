@@ -38,9 +38,9 @@ while [ "$I" -lt "$ITER" ]; do
     fi
     sed '$ d' "$T" | cmp --silent - "$STD" >/dev/null
     if [ "$?" -eq "0" ]; then
-        echo ">> Pass $I: Good" 1>&2
+        echo ">> Pass $I: Good"
     else
-        echo ">> Pass $I: Fail" 1>&2
+        echo ">> Pass $I: Fail"
         cat "$T"
         rm -f "$T"
         rmdir "$WKDIR" || true
