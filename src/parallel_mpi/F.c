@@ -88,10 +88,6 @@ int main(int argc, char * argv[], char**envp)
     struct timespec t1, t2;
     unsigned char * data_array;
     long long * histogram_array;
-    if(argc != 5)
-    {
-        usage(argc, argv);
-    }
 
     long long nin = atoi(argv[2]);
     int nbkt = atoi(argv[3])+1;

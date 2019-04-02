@@ -4,11 +4,14 @@ X="$1"
 NT="$2"
 N="$3"
 MX="$4"
+CPU="$5"
 
 if [ "$X" = "H" ]; then
     BIN="./bin/parallel_mpi/F"
+    NX=2
 else
     BIN="./bin/parallel_mpi/$X"
+    NX=1
 fi
 IN="./data/input/$N.txt"
 if [ "$MX" -eq "255" ]; then
@@ -33,7 +36,13 @@ fi
 
 I=0
 while [ "$I" -lt "$ITER" ]; do
-    srun -n "$NT" "$BIN" "$IN" "$N" "$MX" 1 > "$T"
+    # if [ "$NT" -gt "$CPU" ]; then
+    #     srun -n "$NX" "$BIN" -n "$(($NT/$NX))" --oversubscribe "$IN" "$N" "$MX" 1 > "$T"
+    # else
+    #     srun -n "$NX" "$BIN" -n "$(($NT/$NX))" "$IN" "$N" "$MX" 1 > "$T"
+    # fi
+    srun -o "$T" -n "$NX" --cpus-per-task=$(($NT>$CPU?$CPU/$NX:$NT/$NX)) \
+        mpiexec -n "$(($NT/$NX))" --oversubscribe "$BIN" "$IN" "$N" "$MX" 1
     RET="$?"
     if [ "$RET" -ne "0" ]; then
         cat "$T"

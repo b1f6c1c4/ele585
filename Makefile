@@ -79,12 +79,12 @@ define make-parallel
 
 data/parallel/$(X)/balanced/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt data/standard/balanced/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 1 -n 1 --cpus-per-task=$$$$(($(NT)>$(CPU)?$(CPU):$(NT))) -t 4:00:00 -J $(X)-b$(NT)-$(N) \
+	salloc -N 1 -n 1 --cpus-per-task=$$$$(($(NT)>$(CPU)?$(CPU):$(NT))) -t 1:00:00 -J $(X)-b$(NT)-$(N) \
 		srun -o $$@ ./run.sh $(X) $(NT) $(N) 255
 
 data/parallel/$(X)/unbalanced/$(NT)/$(N).txt: bin/parallel/$(X) data/input/$(N).txt data/standard/unbalanced/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 1 -n 1 --cpus-per-task=$$$$(($(NT)>$(CPU)?$(CPU):$(NT))) -t 4:00:00 -J $(X)-u$(NT)-$(N) \
+	salloc -N 1 -n 1 --cpus-per-task=$$$$(($(NT)>$(CPU)?$(CPU):$(NT))) -t 1:00:00 -J $(X)-u$(NT)-$(N) \
 		srun -o $$@ ./run.sh $(X) $(NT) $(N) 511
 
 data/report/$(X).csv: data/parallel/$(X)/balanced/$(NT)/$(N).txt data/parallel/$(X)/unbalanced/$(NT)/$(N).txt
@@ -95,13 +95,13 @@ define make-parallel-mpi
 
 data/parallel_mpi/$(X)/balanced/$(NT)/$(N).txt: bin/parallel_mpi/$(X) data/input/$(N).txt data/standard/balanced/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 1 -n $(NT) --cpus-per-task=1 -t 4:00:00 -J $(X)-b$(NT)-$(N) \
-		./run-mpi.sh $(X) $(NT) $(N) 255 > $$@
+	salloc -N 1 -n 1 --cpus-per-task=$$$$(($(NT)>$(CPU)?$(CPU):$(NT))) -t 1:00:00 -J $(X)-b$(NT)-$(N) \
+		./run-mpi.sh $(X) $(NT) $(N) 255 $(CPU) >$$@ 2>&1
 
 data/parallel_mpi/$(X)/unbalanced/$(NT)/$(N).txt: bin/parallel_mpi/$(X) data/input/$(N).txt data/standard/unbalanced/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 1 -n $(NT) --cpus-per-task=1 -t 4:00:00 -J $(X)-u$(NT)-$(N) \
-		./run-mpi.sh $(X) $(NT) $(N) 511 > $$@
+	salloc -N 1 -n 1 --cpus-per-task=$$$$(($(NT)>$(CPU)?$(CPU):$(NT))) -t 1:00:00 -J $(X)-u$(NT)-$(N) \
+		./run-mpi.sh $(X) $(NT) $(N) 511 $(CPU) >$$@ 2>&1
 
 data/report/$(X).csv: data/parallel_mpi/$(X)/balanced/$(NT)/$(N).txt data/parallel_mpi/$(X)/unbalanced/$(NT)/$(N).txt
 
@@ -111,13 +111,13 @@ define make-parallel-mpi-H
 
 data/parallel_mpi/H/balanced/$(NT)/$(N).txt: bin/parallel_mpi/F data/input/$(N).txt data/standard/balanced/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 2 -n $(NT) --cpus-per-task=1 --ntasks-per-node=$$$$(($(NT)/2)) -t 4:00:00 -J H-b$(NT)-$(N) \
-		./run-mpi.sh H $(NT) $(N) 255 > $$@
+	salloc -N 2 -n 2 --cpus-per-task=$$$$(($(NT)>$(CPU)?$(CPU)/2:$(NT)/2)) --ntasks-per-node=1 -t 1:00:00 -J H-b$(NT)-$(N) \
+		./run-mpi.sh H $(NT) $(N) 255 $(CPU) >$$@ 2>&1
 
 data/parallel_mpi/H/unbalanced/$(NT)/$(N).txt: bin/parallel_mpi/F data/input/$(N).txt data/standard/unbalanced/$(N).txt
 	mkdir -p $$(shell dirname $$@)
-	salloc -N 2 -n $(NT) --cpus-per-task=1 --ntasks-per-node=$$$$(($(NT)/2)) -t 4:00:00 -J H-u$(NT)-$(N) \
-		./run-mpi.sh H $(NT) $(N) 511 > $$@
+	salloc -N 2 -n 2 --cpus-per-task=$$$$(($(NT)>$(CPU)?$(CPU)/2:$(NT)/2)) --ntasks-per-node=1 -t 1:00:00 -J H-u$(NT)-$(N) \
+		./run-mpi.sh H $(NT) $(N) 511 $(CPU) >$$@ 2>&1
 
 data/report/H.csv: data/parallel_mpi/H/balanced/$(NT)/$(N).txt data/parallel_mpi/H/unbalanced/$(NT)/$(N).txt
 
@@ -146,9 +146,9 @@ data/standard/unbalanced/$(N).txt: bin/serial/histogram data/input/$(N).txt
 	sed -i '$$$$ d' $$@
 
 $$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,A B C D E,$$(eval $$(make-parallel))))
-$$(foreach NT,1 2 4 8,$$(foreach X,F,$$(eval $$(make-parallel-mpi))))
-$$(foreach NT,4 8,$$(foreach X,G,$$(eval $$(make-parallel-mpi))))
-$$(foreach NT,2 4 8,$$(foreach X,H,$$(eval $$(make-parallel-mpi-H))))
+$$(foreach NT,1 2 4 8 16 32 64,$$(foreach X,F,$$(eval $$(make-parallel-mpi))))
+$$(foreach NT,4 8 16 32 64,$$(foreach X,G,$$(eval $$(make-parallel-mpi))))
+$$(foreach NT,2 4 8 16 32 64,$$(foreach X,H,$$(eval $$(make-parallel-mpi-H))))
 
 endef
 
