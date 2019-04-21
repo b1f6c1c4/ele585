@@ -22,18 +22,19 @@ LT_INIT
 ### Checks
 
 # Checks for programs.
-AC_PROG_CC
-AC_PROG_CC_C99
+CFLAGS='-O3'
+CXXFLAGS='-O3'
 AC_PROG_CXX
 AM_PROG_CC_C_O
-AC_PROG_LIBTOOL
 AC_PROG_LN_S
-AC_PROG_EGREP
 
-AC_CACHE_SAVE
+ACX_MPI([], [AC_MSG_ERROR(could not find mpi library for --with-mpi)])
+MPI_CXXFLAGS=`mpic++ --showme:compile`
+MPI_LDFLAGS=`mpic++ --showme:link`
+AC_SUBST(MPI_CXXFLAGS)
+AC_SUBST(MPI_LDFLAGS)
 
-AC_SUBST([MORE_CFLAGS])
-AC_SUBST([MORE_CPPFLAGS])
+AC_SUBST([MORE_CXXFLAGS])
 AC_SUBST([MORE_LDFLAGS])
 AC_OUTPUT
 
@@ -42,7 +43,7 @@ cat <<EOF
 ------------------ Summary ------------------
  $PACKAGE_NAME version $PACKAGE_VERSION
   Prefix.........: $prefix
-  C Compiler.....: $CC $MORE_CFLAGS $MORE_CPPFLAGS $CFLAGS $CPPFLAGS
+  CXX Compiler...: $CXX $MORE_CFLAGS $MORE_CXXFLAGS $CFLAGS $CXXFLAGS $MPI_CXXFLAGS $MPI_LDFLAGS
   Linker.........: $LD $MORE_LDFLAGS $LDFLAGS $LIBS
 ---------------------------------------------
 
