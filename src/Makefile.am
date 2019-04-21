@@ -1,0 +1,9 @@
+AM_CFLAGS = $(MORE_CFLAGS)
+AM_CPPFLAGS = $(MORE_CPPFLAGS)
+AM_LDFLAGS = $(MORE_LDFLAGS)
+
+bin_PROGRAMS = sn-mpi
+
+sn_mpi_SOURCES  = main.h main.cpp
+sn_mpi_CFLAGS   = $(AM_CFLAGS)
+sn_mpi_LDFLAGS  = $(AM_LDFLAGS)
