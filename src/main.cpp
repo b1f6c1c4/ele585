@@ -6,7 +6,7 @@
 
 int main(int argc, char *argv[])
 {
-    constexpr auto grp = 8;
+    constexpr auto grp = 11;
     constexpr auto len = grp; // 1024 * 1024 * 1024;
     auto buffer = new uint64_t[len];
 
