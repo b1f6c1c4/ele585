@@ -1,21 +1,19 @@
-#include "main.h"
-
 #include <iostream>
+#include <algorithm>
+#include <cstdint>
+#include "finite_sort.hpp"
+#include "main.h"
 
 int main(int argc, char *argv[])
 {
-    std::cerr << "This is " << PACKAGE << " version " << VERSION << std::endl;
-    std::cerr << "Please report bug to " << PACKAGE_BUGREPORT << std::endl;
+    constexpr auto len = 5; // 1 * 1024 * 1024;
+    auto buffer = new uint64_t[len];
 
-    int number_nodes, myid;
-    MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &number_nodes);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    std::cin.read(reinterpret_cast<char *>(buffer), sizeof(*buffer) * len);
 
-    std::cerr << "MPI_Init: I'm " << myid << " / " << number_nodes << std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
+    finite_sort<uint64_t, len>(buffer);
 
-    std::cerr << "MPI_Finalize: I'm " << myid << " / " << number_nodes << std::endl;
-    MPI_Finalize();
+    std::cout.write(reinterpret_cast<const char *>(buffer), sizeof(*buffer) * len);
+
     return 0;
 }
