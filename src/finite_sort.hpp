@@ -2,14 +2,13 @@
 #include <limits>
 #include "fancy_choice.hpp"
 
-#define FINITE_SORT_DEBUG
-#define FINITE_SORT_DEBUG_EX
+// #define FINITE_SORT_DEBUG
 #ifdef FINITE_SORT_DEBUG_EX
 #define LOG_FUNC(str) do { \
         std::cerr << "sort_scatter<" << N << ", " << NS << ", "; \
-        if (B != INVALID) \
-            std::cerr << B; \
-        std::cerr << ">(d[" << d - _base << "]) " str << std::endl; \
+        if (BR != INVALID) \
+            std::cerr << BR; \
+        std::cerr << ">(d[" << B << "]) " str << std::endl; \
     } while (false)
 #else
 #define LOG_FUNC
@@ -21,39 +20,43 @@ template <typename T, size_t NTotal>
 class finite_sort
 {
 private:
-    template <ptrdiff_t B>
-    static inline constexpr ptrdiff_t bias(size_t dist)
-    {
-        if (B == INVALID)
-            return INVALID;
-        return B - dist;
-    }
-
     inline void sort_unit(T &l, T& r);
 
-    template <size_t N, size_t NS, ptrdiff_t B = INVALID>
+    template <size_t N, size_t NS, size_t B = 0, ptrdiff_t BR = INVALID>
     inline void sort_scatter(T *d)
     {
-        sort_scatter<N, NS, B>(d, fancy_choice<3>{});
+        sort_scatter<N, NS, B, BR>(d, fancy_choice<4>{});
     }
 
-    template <size_t N, size_t NS, ptrdiff_t B = INVALID,
+    template <size_t N, size_t NS, size_t B = 0, ptrdiff_t BR = INVALID,
              typename std::enable_if_t<
-                 (N < 2 || B != INVALID && (B <= 0 || N * NS - NS + 1 <= B))
+                 (N < 2 || BR != INVALID && (BR <= B || B + N * NS + 1 <= BR + NS))
                  >* = nullptr>
-    inline void sort_scatter(T *d, fancy_choice<3>)
+    inline void sort_scatter(T *d, fancy_choice<4>)
     {
         LOG_FUNC("trivial");
     }
 
+    template <size_t N, size_t NS, size_t B = 0, ptrdiff_t BR = INVALID,
+             typename std::enable_if_t<
+                 (!(B + N * NS - NS + 1 <= NTotal) && N <= 10)
+                 >* = nullptr>
+    inline void sort_scatter(T *d, fancy_choice<3>)
+    {
+        LOG_FUNC("downgrade");
+        const auto REST = NTotal - B;
+        const auto NX = ((REST > NS * (REST / NS)) ? 1 : 0) + REST / NS;
+        sort_scatter<NX, NS, B, BR>(d);
+    }
+
 #define SORT_SCATTER_FOR_N_DECL(x) \
-    template <size_t N, size_t NS, ptrdiff_t B = INVALID, \
+    template <size_t N, size_t NS, size_t B = 0, ptrdiff_t BR = INVALID, \
              typename std::enable_if_t<(x)>* = nullptr> \
     inline void sort_scatter(T *d, fancy_choice<2>)
 
 #define SORT_SCATTER_FOR_N_IMPL(x) \
     template <typename T, size_t NTotal> \
-    template <size_t N, size_t NS, ptrdiff_t B, \
+    template <size_t N, size_t NS, size_t B, ptrdiff_t BR, \
              typename std::enable_if_t<(x)>*> \
     inline void finite_sort<T, NTotal>::sort_scatter(T *d, fancy_choice<2>)
 
@@ -65,18 +68,16 @@ private:
     SORT_SCATTER_FOR_N_DECL(N == 13);
     SORT_SCATTER_FOR_N_DECL(N == 16);
 
-    template <size_t N, size_t NS, ptrdiff_t B = INVALID, \
+    template <size_t N, size_t NS, size_t B = 0, ptrdiff_t BR = INVALID, \
              typename std::enable_if_t<(N > 10 && N < 20)>* = nullptr> \
     inline void sort_scatter(T *d, fancy_choice<1>)
     {
-        sort_scatter<N + 1, NS, B>(d);
+        LOG_FUNC("upgrade");
+        sort_scatter<N + 1, NS, B, BR>(d);
     }
 
-    template <size_t N, size_t NS, ptrdiff_t B = INVALID>
+    template <size_t N, size_t NS, size_t B = 0, ptrdiff_t BR = INVALID>
     inline void sort_scatter(T *d, fancy_choice<0>);
-
-    template <size_t N, size_t NS, ptrdiff_t B>
-    friend class sorter;
 
 #ifdef FINITE_SORT_DEBUG
     const T *_base;
@@ -108,19 +109,20 @@ inline void finite_sort<T, NTotal>::sort_unit(T &l, T& r)
         std::swap(l, r);
 }
 
-#define F(l, r) sort_scatter<2, ((r) - (l)) * NS, bias<B>((l) * NS)>(d + (l) * NS)
-#define X(l, r) sort_unit(d[(l) * NS], d[(r) * NS])
+#define F(l, r) sort_scatter<2, ((r) - (l)) * NS, B + (l) * NS, BR>(d)
+#define X(l, r) sort_scatter<2, ((r) - (l)) * NS, B + (l) * NS>(d)
 
 SORT_SCATTER_FOR_N_IMPL(N == 2)
 {
     LOG_FUNC("two");
-    sort_unit(d[0], d[NS]);
+    if (B + NS < NTotal)
+        sort_unit(d[B], d[B + NS]);
 }
 
 SORT_SCATTER_FOR_N_IMPL(N == 3)
 {
     LOG_FUNC("three");
-    if (B > NS)
+    if (BR > B + NS)
         F(0, 1), X(1, 2), X(0, 1);
     else
         F(1, 2), X(0, 1), X(1, 2);
@@ -155,9 +157,9 @@ SORT_SCATTER_FOR_N_IMPL(N == 10)
 SORT_SCATTER_FOR_N_IMPL(N == 12)
 {
     LOG_FUNC("twelve");
-    sort_scatter<4, NS, bias<B>(0 * NS)>(d + 0 * NS);
-    sort_scatter<4, NS, bias<B>(4 * NS)>(d + 4 * NS);
-    sort_scatter<4, NS, bias<B>(8 * NS)>(d + 8 * NS);
+    sort_scatter<4, NS, B + (0 * NS), BR>(d);
+    sort_scatter<4, NS, B + (4 * NS), BR>(d);
+    sort_scatter<4, NS, B + (8 * NS), BR>(d);
     X(1, 5), X(5, 9), X(1, 5), X(6, 10), X(2, 6), X(6, 10);
     X(0, 4), X(4, 8), X(0, 4), X(7, 11), X(3, 7), X(7, 11);
     X(1, 4), X(7, 10), X(3, 8);
@@ -165,8 +167,41 @@ SORT_SCATTER_FOR_N_IMPL(N == 12)
     X(3, 4), X(5, 6), X(7, 8);
 }
 
+SORT_SCATTER_FOR_N_IMPL(N == 13)
+{
+    LOG_FUNC("thirteen");
+    F(0, 5), F(1, 7), F(3, 9), F(2, 4), F(6, 11), F(8, 12);
+    X(0, 6), X(1, 3), X(2, 8), X(4, 12), X(5, 11), X(7, 9);
+    X(0, 2), X(4, 5), X(6, 8), X(9, 10), X(11, 12);
+    X(3, 12), X(5, 9), X(7, 8), X(10, 12);
+    X(1, 5), X(2, 3), X(4, 7), X(8, 10), X(9, 11);
+    X(0, 1), X(5, 6), X(8, 9), X(10, 11);
+    X(1, 4), X(2, 5), X(3, 6), X(7, 8), X(9, 10);
+    X(1, 2), X(3, 7), X(4, 5), X(6, 8);
+    X(2, 4), X(3, 5), X(6, 7), X(8, 9);
+    X(3, 4), X(5, 6);
+}
+
+SORT_SCATTER_FOR_N_IMPL(N == 16)
+{
+    LOG_FUNC("sixteen");
+#define STAGE(x) F(x + 0, x + 1), F(x + 2, x + 3), X(x + 0, x + 2), X(x + 1, x + 3)
+    STAGE(0), STAGE(4), STAGE(8), STAGE(12);
+#undef STAGE
+#define STAGE(x) X(x + 0, x + 4), X(x + 1, x + 5), X(x + 2, x + 6), X(x + 3, x + 7)
+    STAGE(0), STAGE(8);
+#undef STAGE
+    X(0, 8), X(1, 9), X(2, 10), X(3, 11), X(4, 12), X(5, 13), X(6, 14), X(7, 15);
+    X(1, 2), X(3, 12), X(4, 8), X(5, 10), X(6, 9), X(7, 11), X(13, 14);
+    X(1, 4), X(2, 8), X(7, 13), X(11, 14);
+    X(2, 4), X(3, 8), X(5, 6), X(7, 12), X(9, 10), X(11, 13);
+    X(3, 5), X(6, 8), X(7, 9), X(10, 12);
+    X(3, 4), X(5, 6), X(7, 8), X(9, 10), X(11, 12);
+    X(6, 7), X(8, 9);
+}
+
 template <typename T, size_t NTotal>
-template <size_t N, size_t NS, ptrdiff_t B>
+template <size_t N, size_t NS, size_t B, ptrdiff_t BR>
 void finite_sort<T, NTotal>::sort_scatter(T *d, fancy_choice<0>)
 {
     LOG_FUNC("odd-even");
@@ -174,14 +209,15 @@ void finite_sort<T, NTotal>::sort_scatter(T *d, fancy_choice<0>)
     constexpr auto Q = N / 2;
     constexpr auto P = N - Q;
 
-    sort_scatter<P, 1 * NS, bias<B>(0 * NS)>(d + 0 * NS);
-    sort_scatter<Q, 1 * NS, bias<B>(P * NS)>(d + P * NS);
+    sort_scatter<P, 1 * NS, B + (0 * NS), BR>(d);
+    sort_scatter<Q, 1 * NS, B + (P * NS), BR>(d);
 
-    sort_scatter<P, 2 * NS, bias<P * NS>(0 * NS)>(d + 0 * NS);
-    sort_scatter<Q, 2 * NS, bias<P * NS>(1 * NS)>(d + 1 * NS);
+    sort_scatter<P, 2 * NS, B + (0 * NS), B + P * NS>(d);
+    sort_scatter<Q, 2 * NS, B + (1 * NS), B + P * NS>(d);
 
     for (size_t i = 1; i < N - 1; i += 2)
-        X(i, i + 1);
+        if (B + i * NS + NS < NTotal)
+            sort_unit(d[B + i * NS], d[B + i * NS + NS]);
 }
 
 #undef X

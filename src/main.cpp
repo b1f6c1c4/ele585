@@ -6,8 +6,8 @@
 
 int main(int argc, char *argv[])
 {
-    constexpr auto grp = 11;
-    constexpr auto len = grp; // 1024 * 1024 * 1024;
+    constexpr auto grp = 16;
+    auto len = std::atoi(argv[1]);
     auto buffer = new uint64_t[len];
 
     std::cin.read(reinterpret_cast<char *>(buffer), sizeof(*buffer) * len);
