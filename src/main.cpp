@@ -7,8 +7,8 @@
 
 int main(int argc, char *argv[])
 {
-    constexpr auto grp = 8;
-    auto len = std::atoi(argv[1]);
+    constexpr auto grp = 19;
+    auto len = grp; // std::atoi(argv[1]);
     auto buffer = new uint64_t[len];
 
     std::cin.seekg(0, std::cin.beg);
