@@ -5,20 +5,23 @@ SRCS=gen/generator.cpp gen/main.cpp src/main.cpp
 
 all: bin/sn-gen bin/sn-mpi
 
+clean:
+	rm -rf bin/ obj/ src/sn.hpp
+
 obj/%.d: ;
 
 .PRECIOUS: obj/%.d
 
 include $(wildcard $(patsubst %,obj/%.d,$(basename $(SRCS))))
 
-obj/src/%.o: src/%.cpp
+obj/src/%.o: src/%.cpp src/sn.hpp
 	@mkdir -p $(shell dirname "$@")
-	$(CXX) -c -o $@ $^
+	$(CXX) -c -o $@ $<
 	$(POSTCOMPILE)
 
 obj/gen/%.o: gen/%.cpp
 	@mkdir -p $(shell dirname "$@")
-	$(CXX) -c -o $@ $^
+	$(CXX) -c -o $@ $<
 	$(POSTCOMPILE)
 
 bin/sn-gen: obj/gen/generator.o obj/gen/main.o
@@ -26,8 +29,8 @@ bin/sn-gen: obj/gen/generator.o obj/gen/main.o
 	$(CXX) -o $@ $^
 
 src/sn.hpp: bin/sn-gen
-	$< 512 >$@
+	$< 64 >$@
 
-bin/sn-mpi: src/sn.hpp obj/src/main.o
+bin/sn-mpi: obj/src/main.o
 	@mkdir -p $(shell dirname "$@")
 	$(CXX) -o $@ $^

@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 
 #include <algorithm>
 
-#define X(l, r) if (d[r] < d[l]) std::swap(l, r)
+#define X(l, r) if (first[r] < first[l]) std::swap(first[l], first[r])
 
 template <typename Iter>
 inline void sn_sort(Iter first, Iter last)
