@@ -5,7 +5,6 @@
 #include <utility>
 #include <iterator>
 #include <algorithm>
-#include <random>
 #include "sn_sort.hpp"
 
 #ifndef X_USE_SN
@@ -16,16 +15,15 @@
 #define X_MAX_DEPTH_MULT 3
 #endif
 
-template <typename Iter, typename Device>
-void dp_random_pivots(Iter first, Iter last, Device &rnd)
+template <typename Iter>
+void dp_random_pivots(Iter first, Iter last)
 {
-    auto q = (last - first) / 4;
-    std::uniform_int_distribution<size_t> dist(0, q);
+    auto q = (last - first) / 3;
     Iter v[4] = {
-        first + dist(rnd) + 0 * q,
-        first + dist(rnd) + 1 * q,
-        first + dist(rnd) + 2 * q,
-        first + dist(rnd) + 3 * q
+        first,
+        first + q,
+        last - q,
+        last,
     };
 #define X(l, r) if (*v[r] < *v[l]) std::iter_swap(v[l], v[r])
     X(0, 1); X(2, 3); X(0, 2); X(1, 3); X(1, 2);
@@ -68,8 +66,8 @@ std::pair<Iter, Iter> dp_partition(Iter first, Iter last)
     return std::make_pair(left, right);
 }
 
-template <typename Iter, typename Device>
-void dp_sort(Iter begin, Iter end, Device &rnd, size_t max_depth)
+template <typename Iter>
+void dp_sort(Iter begin, Iter end, size_t max_depth)
 {
     while (true)
     {
@@ -82,7 +80,7 @@ void dp_sort(Iter begin, Iter end, Device &rnd, size_t max_depth)
         if (!max_depth)
             break;
 
-        dp_random_pivots(begin, end - 1, rnd);
+        dp_random_pivots(begin, end - 1);
         decltype(auto) lr = dp_partition(begin, end - 1);
 
         auto dL = lr.first - begin;
@@ -91,20 +89,20 @@ void dp_sort(Iter begin, Iter end, Device &rnd, size_t max_depth)
 
         if (dL >= dM && dL >= dR)
         {
-            dp_sort(lr.first, lr.second, rnd, max_depth - 1);
-            dp_sort(lr.second, end, rnd, max_depth - 1);
+            dp_sort(lr.first + 1, lr.second, max_depth - 1);
+            dp_sort(lr.second, end, max_depth - 1);
             end = lr.first;
         }
         else if (dR >= dM && dR >= dL)
         {
-            dp_sort(begin, lr.first, rnd, max_depth - 1);
-            dp_sort(lr.first, lr.second, rnd, max_depth - 1);
-            begin = lr.second;
+            dp_sort(begin, lr.first, max_depth - 1);
+            dp_sort(lr.first + 1, lr.second, max_depth - 1);
+            begin = lr.second + 1;
         }
         else
         {
-            dp_sort(begin, lr.first, rnd, max_depth - 1);
-            dp_sort(lr.second, end, rnd, max_depth - 1);
+            dp_sort(begin, lr.first, max_depth - 1);
+            dp_sort(lr.second, end, max_depth - 1);
             begin = lr.first, end = lr.second;
         }
 
@@ -115,8 +113,8 @@ void dp_sort(Iter begin, Iter end, Device &rnd, size_t max_depth)
     std::sort_heap(begin, end);
 }
 
-template <typename Iter, typename Device>
-void dp_sort(Iter begin, Iter end, Device &rnd)
+template <typename Iter>
+void dp_sort(Iter begin, Iter end)
 {
-    dp_sort(begin, end, rnd, std::log2(end - begin) * X_MAX_DEPTH_MULT);
+    dp_sort(begin, end, std::log2(end - begin) * X_MAX_DEPTH_MULT);
 }
