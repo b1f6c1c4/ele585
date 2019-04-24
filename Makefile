@@ -1,7 +1,7 @@
 DEPFLAGS=-MT $@ -MMD -MP -MF obj/$*.Td
 CXX=g++ -std=c++17 -O3 -Wall -Werror -Wextra $(DEPFLAGS)
 POSTCOMPILE=@mv -f obj/$*.Td obj/$*.d && touch $@
-SRCS=gen/generator.cpp gen/main.cpp src/main.cpp
+SRCS=gen/generator.cpp gen/main.cpp src/sn.cpp src/main.cpp
 
 all: bin/sn-gen bin/sn-mpi
 
@@ -14,7 +14,7 @@ obj/%.d: ;
 
 include $(wildcard $(patsubst %,obj/%.d,$(basename $(SRCS))))
 
-obj/src/%.o: src/%.cpp src/sn.hpp
+obj/src/%.o: src/%.cpp
 	@mkdir -p $(shell dirname "$@")
 	$(CXX) -c -o $@ $<
 	$(POSTCOMPILE)
@@ -28,9 +28,9 @@ bin/sn-gen: obj/gen/generator.o obj/gen/main.o
 	@mkdir -p $(shell dirname "$@")
 	$(CXX) -o $@ $^
 
-src/sn.hpp: bin/sn-gen
-	$< 64 >$@
+src/sn.cpp: bin/sn-gen
+	$< 128 >$@
 
-bin/sn-mpi: obj/src/main.o
+bin/sn-mpi: obj/src/main.o obj/src/sn.o
 	@mkdir -p $(shell dirname "$@")
 	$(CXX) -o $@ $^

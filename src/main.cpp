@@ -1,7 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cstdint>
-#include "sn.hpp"
+#include "sn.h"
 #include "timed.hpp"
 
 int main(int argc, char *argv[])

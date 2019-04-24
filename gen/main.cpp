@@ -1,3 +1,4 @@
+#include <string>
 #include <iostream>
 #include "generator.h"
 
@@ -52,13 +53,19 @@ public:
 int main(int argc, char *argv[])
 {
     auto kind = false;
+    auto id = 0;
     auto max = 128;
+    auto type = std::string("size_t");
 
     for (auto i = 1; i < argc; i++)
         if (std::string(argv[i]) == "--graph")
             kind = true;
+        else if (id == 0)
+            id = 1, max = std::atoi(argv[i]);
+        else if (id == 1)
+            id = 2, type = argv[i];
         else
-            max = std::atoi(argv[i]);
+            return 1;
 
     if (kind)
     {
@@ -68,14 +75,13 @@ int main(int argc, char *argv[])
 
     cxx_generator gen{};
 
-    std::cout << R"(#pragma once
-
-#include <algorithm>
+    std::cout << R"(#include "sn.h"
+#include <utility>
 
 #define X(l, r) if (first[r] < first[l]) std::swap(first[l], first[r])
-
-template <typename Iter>
-inline void sn_sort(Iter first, Iter last)
+)";
+    std::cout << "void sn_sort(" << type << " *first, " << type << " *last)";
+    std::cout << R"(
 {
     if (last <= first)
         return;
@@ -89,9 +95,7 @@ inline void sn_sort(Iter first, Iter last)
 
     std::cout << R"(
     default:
-
-        std::sort(first, last);
-        break;
+        throw;
     }
 }
 )";
