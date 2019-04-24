@@ -8,20 +8,21 @@ protected:
     virtual void sort_unit(size_t l, size_t r)
     {
         if (_count++ % 6 == 0)
-            std::cout << std::endl << "       ";
+            std::cout << std::endl << "   ";
         std::cout << " X(" << l << ", " << r << ");";
     }
 
     size_t _count;
 public:
-    void generate(size_t sz)
+    void generate(size_t sz, const std::string &type)
     {
         _count = 0;
-        std::cout << std::endl;
-        std::cout << "    case " << sz << ":" << std::endl;
+        std::cout << std::endl
+            << "void sn_sort_" << sz << "(" << type << " *d)" << std::endl
+            << "{";
         sorting_network_generator::sort(sz);
-        std::cout << std::endl;
-        std::cout << "        break; // " << _count << " units" << std::endl;
+        std::cout << std::endl
+            << "} // " << _count << " units" << std::endl;
     }
 };
 
@@ -54,22 +55,21 @@ int main(int argc, char *argv[])
 {
     auto kind = false;
     auto id = 0;
-    auto max = 128;
     auto type = std::string("size_t");
+    std::vector<size_t> szs;
 
     for (auto i = 1; i < argc; i++)
         if (std::string(argv[i]) == "--graph")
-            kind = true;
+            id = 1, kind = true;
         else if (id == 0)
-            id = 1, max = std::atoi(argv[i]);
-        else if (id == 1)
-            id = 2, type = argv[i];
+            id = 1, type = argv[i];
         else
-            return 1;
+            id = 1, szs.push_back(std::atoi(argv[i]));
 
     if (kind)
     {
-        graph_generator{}.generate(max);
+        for (auto sz : szs)
+            graph_generator{}.generate(sz);
         return 0;
     }
 
@@ -78,8 +78,13 @@ int main(int argc, char *argv[])
     std::cout << R"(#include "sn.h"
 #include <utility>
 
-#define X(l, r) if (first[r] < first[l]) std::swap(first[l], first[r])
+#define X(l, r) if (d[r] < d[l]) std::swap(d[l], d[r])
 )";
+
+    for (auto sz : szs)
+        gen.generate(sz, type);
+
+    std::cout << std::endl;
     std::cout << "void sn_sort(" << type << " *first, " << type << " *last)";
     std::cout << R"(
 {
@@ -88,14 +93,17 @@ int main(int argc, char *argv[])
 
     switch (last - first)
     {
+        case 0:
+        case 1:
+            return;
 )";
 
-    for (auto i = 0; i <= max; i++)
-        gen.generate(i);
+    for (auto sz : szs)
+        std::cout << "        case " << sz << ": sn_sort_" << sz << "(first); break;" << std::endl;
 
     std::cout << R"(
-    default:
-        throw;
+        default:
+            throw;
     }
 }
 )";

@@ -6,7 +6,7 @@ SRCS=gen/generator.cpp gen/main.cpp src/sn.cpp src/main.cpp
 all: bin/sn-gen bin/sn-mpi
 
 clean:
-	rm -rf bin/ obj/ src/sn.hpp
+	rm -rf bin/ obj/ src/sn.cpp
 
 obj/%.d: ;
 
@@ -28,8 +28,7 @@ bin/sn-gen: obj/gen/generator.o obj/gen/main.o
 	@mkdir -p $(shell dirname "$@")
 	$(CXX) -o $@ $^
 
-src/sn.cpp: bin/sn-gen
-	$< 128 >$@
+# src/sn.cpp: bin/sn-gen
 
 bin/sn-mpi: obj/src/main.o obj/src/sn.o
 	@mkdir -p $(shell dirname "$@")
