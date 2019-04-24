@@ -14,11 +14,12 @@ protected:
 
     size_t _count;
 public:
-    void generate(size_t sz, const std::string &type)
+    void generate(size_t sz)
     {
         _count = 0;
         std::cout << std::endl
-            << "void sn_sort_" << sz << "(" << type << " *d)" << std::endl
+            << "template <typename Iter>" << std::endl
+            << "void sn_sort_" << sz << "(Iter d)" << std::endl
             << "{";
         sorting_network_generator::sort(sz);
         std::cout << std::endl
@@ -54,38 +55,33 @@ public:
 int main(int argc, char *argv[])
 {
     auto kind = false;
-    auto id = 0;
-    auto type = std::string("size_t");
-    std::vector<size_t> szs;
+    auto max = 32;
 
     for (auto i = 1; i < argc; i++)
         if (std::string(argv[i]) == "--graph")
-            id = 1, kind = true;
-        else if (id == 0)
-            id = 1, type = argv[i];
+            kind = true;
         else
-            id = 1, szs.push_back(std::atoi(argv[i]));
+            max = std::atoi(argv[i]);
 
     if (kind)
     {
-        for (auto sz : szs)
-            graph_generator{}.generate(sz);
+        graph_generator{}.generate(max);
         return 0;
     }
 
     cxx_generator gen{};
 
-    std::cout << R"(#include "sn.h"
-#include <utility>
+    std::cout << R"(#include <utility>
 
 #define X(l, r) if (d[r] < d[l]) std::swap(d[l], d[r])
 )";
 
-    for (auto sz : szs)
-        gen.generate(sz, type);
+    for (auto sz = 2; sz < max; sz++)
+        gen.generate(sz);
 
     std::cout << std::endl;
-    std::cout << "void sn_sort(" << type << " *first, " << type << " *last)";
+    std::cout << "template <typename Iter>" << std::endl;
+    std::cout << "void sn_sort(Iter first, Iter last)";
     std::cout << R"(
 {
     if (last <= first)
@@ -98,7 +94,7 @@ int main(int argc, char *argv[])
             return;
 )";
 
-    for (auto sz : szs)
+    for (auto sz = 2; sz < max; sz++)
         std::cout << "        case " << sz << ": sn_sort_" << sz << "(first); break;" << std::endl;
 
     std::cout << R"(
@@ -106,5 +102,7 @@ int main(int argc, char *argv[])
             throw;
     }
 }
+
+#undef X
 )";
 }
