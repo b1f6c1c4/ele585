@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 #define X(l, r) if (d[r] < d[l]) std::swap(d[l], d[r])
 )";
 
-    for (auto sz = 2; sz < max; sz++)
+    for (auto sz = 2; sz <= max; sz++)
         gen.generate(sz);
 
     std::cout << std::endl;
@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
             return;
 )";
 
-    for (auto sz = 2; sz < max; sz++)
+    for (auto sz = 2; sz <= max; sz++)
         std::cout << "        case " << sz << ": sn_sort_" << sz << "(first); break;" << std::endl;
 
     std::cout << R"(

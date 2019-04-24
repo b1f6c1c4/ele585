@@ -1,13 +1,12 @@
 #include <iostream>
 #include <algorithm>
 #include <cstdint>
-#ifndef STDSORT
-#include "sn.h"
-#endif
+#include <random>
+#include "dp_quick_sort.hpp"
 #include "timed.hpp"
 
 #ifndef GRP
-#define GRP 1
+#define GRP 1024
 #endif
 
 int main(int argc, char *argv[])
@@ -19,12 +18,14 @@ int main(int argc, char *argv[])
     auto len = std::atoi(argv[1]);
     auto buffer = new uint64_t[len];
 
+    std::mt19937 rnd{};
+
     std::cin.read(reinterpret_cast<char *>(buffer), sizeof(*buffer) * len);
     {
         timed t{};
         for (auto ptr = buffer; ptr < buffer + len; ptr += grp)
 #ifndef STDSORT
-            sn_sort(ptr, ptr + grp);
+            dp_sort(ptr, ptr + grp, rnd);
 #else
             std::sort(ptr, ptr + grp);
 #endif

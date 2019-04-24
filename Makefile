@@ -1,18 +1,18 @@
-DEPFLAGS=-MT $@ -MMD -MP -MF obj/$*.Td
+DEPFLAGS=-MT $@ -MMD -MP -MF $(patsubst %.o,%.Td,$@)
 CXX=g++ -std=c++17 -O3 -Wall -Werror -Wextra $(DEPFLAGS)
-POSTCOMPILE=@mv -f obj/$*.Td obj/$*.d && touch $@
+POSTCOMPILE=@mv -f $(patsubst %.o,%.Td,$@) $(patsubst %.o,%.d,$@) && touch $@
 SRCS=gen/generator.cpp gen/main.cpp src/main.cpp
 
 all: bin/sn-gen bin/sn-mpi
 
 clean:
-	rm -rf bin/ obj/ src/sn.cpp
+	rm -rf bin/ obj/ src/sn_sort.hpp
 
 obj/%.d: ;
 
 .PRECIOUS: obj/%.d
 
-include $(wildcard $(patsubst %,obj/%.d,$(basename $(SRCS))))
+include $(patsubst %.cpp,obj/%.d,$(SRCS))
 
 obj/src/%.o: src/%.cpp src/sn_sort.hpp
 	@mkdir -p $(shell dirname "$@")
