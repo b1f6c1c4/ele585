@@ -1,7 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cstdint>
-#include "dp_quick_sort.hpp"
+#include "quick_sort.hpp"
 #include "timed.hpp"
 
 #ifndef GRP
@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
         timed t{};
         for (auto ptr = buffer; ptr < buffer + len; ptr += grp)
 #ifndef STDSORT
-            dp_sort(ptr, ptr + grp);
+            quick_sort(ptr, ptr + grp);
 #else
             std::sort(ptr, ptr + grp);
 #endif
