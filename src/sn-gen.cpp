@@ -2,13 +2,13 @@
 #include <iostream>
 #include "generator.h"
 
-class cxx_generator : protected generator
+class cxx_generator : protected sorting_network_generator
 {
 protected:
     virtual void sort_unit(size_t l, size_t r)
     {
-        if (_count++ % 8 == 0)
-            std::cout << std::endl << "   ";
+        if (_count++ % 6 == 0)
+            std::cout << std::endl << "       ";
         std::cout << " X(" << l << ", " << r << ");";
     }
 
@@ -17,11 +17,36 @@ public:
     void generate(size_t sz)
     {
         _count = 0;
-        std::cout << "template <typename T>" << std::endl;
-        std::cout << "void finite_sort<T, " << sz << ">(T *d)" << std::endl;
-        std::cout << "{";
-        generator::sort(sz);
-        std::cout << std::endl << "} // " << _count << " units" << std::endl;
+        std::cout << std::endl;
+        std::cout << "    case " << sz << ":" << std::endl;
+        sorting_network_generator::sort(sz);
+        std::cout << std::endl;
+        std::cout << "        break; // " << _count << " units" << std::endl;
+    }
+};
+
+class graph_generator : protected sorting_network_generator
+{
+protected:
+    virtual void sort_unit(size_t l, size_t r)
+    {
+        for (size_t i = 0; i < l; i++)
+            std::cout << " | ";
+        std::cout << " X-";
+        for (size_t i = l; i < r - 1; i++)
+            std::cout << "-+-";
+        std::cout << "-X ";
+        for (size_t i = r; i < _sz; i++)
+            std::cout << " | ";
+        std::cout << std::endl;
+    }
+
+    size_t _sz;
+public:
+    void generate(size_t sz)
+    {
+        _sz = sz;
+        sorting_network_generator::sort(sz);
     }
 };
 
@@ -29,18 +54,30 @@ int main(int argc, char *argv[])
 {
     cxx_generator gen{};
 
-    std::cout << R"(
+    std::cout << R"(#pragma once
+
 #include <algorithm>
 
 #define X(l, r) if (d[r] < d[l]) std::swap(l, r)
 
-template <typename T, size_t N>
-void finite_sort<T, N>(T *d)
+template <typename Iter>
+inline void sn_sort(Iter first, Iter last)
 {
-    std::sort(d, d + N);
-}
+    if (last <= first)
+        return;
+
+    switch (last - first)
+    {
 )";
 
-    for (size_t i = 0; i < 100; i++)
+    for (size_t i = 0; i <= 128; i++)
         gen.generate(i);
+
+    std::cout << R"(
+    default:
+        std::sort(first, last);
+        break;
+    }
+}
+)";
 }

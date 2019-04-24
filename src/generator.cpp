@@ -2,9 +2,12 @@
 #include <algorithm>
 #include <iostream>
 
-#define X(l, r) sorting_network(2, ((r) - (l)) * NS, B + (l) * NS, NT)
-void generator::sorting_network(RNG())
+#define P(l, r) G.push(std::make_pair(l, r))
+#define Y(...) G.merge(__VA_ARGS__)
+#define X(l, r) Y(sorting_network(2, ((r) - (l)) * NS, B + (l) * NS, NT))
+sorting_network_generator::gen_t sorting_network_generator::sorting_network(RNG())
 {
+	gen_t G{};
     switch (N)
     {
 		case 0:
@@ -12,7 +15,7 @@ void generator::sorting_network(RNG())
 			break;
         case 2:
             if (B + NS < NT)
-                sort_unit(B, B + NS);
+                P(B, B + NS);
             break;
         case 3:
             X(0, 1), X(1, 2), X(0, 1);
@@ -38,9 +41,9 @@ void generator::sorting_network(RNG())
             X(2, 3), X(3, 4), X(6, 7), X(5, 6), X(4, 5);
             break;
         case 12:
-            sorting_network(4, NS, B + (0 * NS), NT);
-            sorting_network(4, NS, B + (4 * NS), NT);
-            sorting_network(4, NS, B + (8 * NS), NT);
+            Y(sorting_network(4, NS, B + (0 * NS), NT));
+            Y(sorting_network(4, NS, B + (4 * NS), NT));
+            Y(sorting_network(4, NS, B + (8 * NS), NT));
             X(1, 5), X(5, 9), X(1, 5), X(6, 10), X(2, 6), X(6, 10);
             X(0, 4), X(4, 8), X(0, 4), X(7, 11), X(3, 7), X(7, 11);
             X(1, 4), X(7, 10), X(3, 8);
@@ -77,43 +80,43 @@ void generator::sorting_network(RNG())
         case 11:
         case 14:
         case 15:
-            sorting_network(N + 1, NS, B, NT);
+            Y(sorting_network(N + 1, NS, B, NT));
 			break;
         default:
-            auto P = ceil_2(N);
-            auto Q = floor_2(N);
-
+            auto P = ceil_2(N), Q = floor_2(N);
 #define T(n, ns, b) (n), (ns), (b), std::min(NT, (b) + (n) * (ns))
 #define L T(P, NS, B + (0 * NS))
 #define R T(Q, NS, B + (P * NS))
-            sorting_network(L);
-            sorting_network(R);
-            odd_even(L, R);
+            Y(sorting_network(L));
+			Y(sorting_network(R));
+            Y(odd_even(L, R));
 			break;
     }
+	return G;
 }
 
-void generator::odd_even(RNG(a), RNG(b))
+sorting_network_generator::gen_t sorting_network_generator::odd_even(RNG(a), RNG(b))
 {
+	gen_t G{};
 	if (Na == 0 || Nb == 0)
-		return;
+		return G;
 	if (Na == 1 && Nb == 1)
 	{
 		if (Ba < NTa && Bb < NTb)
-			sort_unit(Ba, Bb);
-		return;
+			P(Ba, Bb);
+		return G;
 	}
 
 #define Ta(n, ns, b) (n), (ns), (b), std::min(NTa, (b) + (n) * (ns) + 1)
 #define Tb(n, ns, b) (n), (ns), (b), std::min(NTb, (b) + (n) * (ns) + 1)
-    odd_even(
+    Y(odd_even(
         Ta(ceil_2(Na),  2 * NSa, Ba + 0 * NSa),
         Tb(ceil_2(Nb),  2 * NSb, Bb + 0 * NSb)
-        );
+        ),
     odd_even(
         Ta(floor_2(Na), 2 * NSa, Ba + 1 * NSa),
         Tb(floor_2(Nb), 2 * NSb, Bb + 1 * NSb)
-        );
+        ));
 
     auto valid = false;
     size_t last = 0;
@@ -121,10 +124,12 @@ void generator::odd_even(RNG(a), RNG(b))
         if (!valid)
             valid = true, last = Ba + i * NSa;
         else
-            valid = false, sort_unit(last, Ba + i * NSa);
+            valid = false, P(last, Ba + i * NSa);
     for (size_t i = 0; i < Nb; i++)
         if (!valid)
             valid = true, last = Bb + i * NSb;
         else if (last < NTb && Bb + i * NSb < NTb)
-            valid = false, sort_unit(last, Bb + i * NSb);
+            valid = false, P(last, Bb + i * NSb);
+
+	return G;
 }
