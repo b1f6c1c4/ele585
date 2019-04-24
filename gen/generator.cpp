@@ -44,8 +44,8 @@ sorting_network_generator::gen_t sorting_network_generator::sorting_network(RNG(
             Y(sorting_network(4, NS, B + (0 * NS), NT));
             Y(sorting_network(4, NS, B + (4 * NS), NT));
             Y(sorting_network(4, NS, B + (8 * NS), NT));
-            X(1, 5), X(5, 9), X(1, 5), X(6, 10), X(2, 6), X(6, 10);
-            X(0, 4), X(4, 8), X(0, 4), X(7, 11), X(3, 7), X(7, 11);
+            X(0, 4), X(4, 8), X(0, 4), X(1, 5), X(5, 9), X(1, 5);
+            X(6, 10), X(2, 6), X(6, 10), X(7, 11), X(3, 7), X(7, 11);
             X(1, 4), X(7, 10), X(3, 8);
             X(2, 3), X(2, 4), X(3, 5), X(8, 9), X(7, 9), X(6, 8);
             X(3, 4), X(5, 6), X(7, 8);
@@ -120,16 +120,22 @@ sorting_network_generator::gen_t sorting_network_generator::odd_even(RNG(a), RNG
 
     auto valid = false;
     size_t last = 0;
+
     for (size_t i = 1; i < Na; i++)
+    {
         if (!valid)
             valid = true, last = Ba + i * NSa;
         else
             valid = false, P(last, Ba + i * NSa);
+    }
+
     for (size_t i = 0; i < Nb; i++)
+    {
         if (!valid)
             valid = true, last = Bb + i * NSb;
         else if (last < NTb && Bb + i * NSb < NTb)
             valid = false, P(last, Bb + i * NSb);
+    }
 
 	return G;
 }

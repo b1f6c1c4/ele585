@@ -1,4 +1,3 @@
-#include <config.h>
 #include <iostream>
 #include "generator.h"
 
@@ -33,10 +32,10 @@ protected:
         for (size_t i = 0; i < l; i++)
             std::cout << " | ";
         std::cout << " X-";
-        for (size_t i = l; i < r - 1; i++)
+        for (size_t i = l + 1; i < r; i++)
             std::cout << "-+-";
         std::cout << "-X ";
-        for (size_t i = r; i < _sz; i++)
+        for (size_t i = r + 1; i < _sz; i++)
             std::cout << " | ";
         std::cout << std::endl;
     }
@@ -52,6 +51,21 @@ public:
 
 int main(int argc, char *argv[])
 {
+    auto kind = false;
+    auto max = 128;
+
+    for (auto i = 1; i < argc; i++)
+        if (std::string(argv[i]) == "--graph")
+            kind = true;
+        else
+            max = std::atoi(argv[i]);
+
+    if (kind)
+    {
+        graph_generator{}.generate(max);
+        return 0;
+    }
+
     cxx_generator gen{};
 
     std::cout << R"(#pragma once
@@ -70,11 +84,12 @@ inline void sn_sort(Iter first, Iter last)
     {
 )";
 
-    for (size_t i = 0; i <= 128; i++)
+    for (auto i = 0; i <= max; i++)
         gen.generate(i);
 
     std::cout << R"(
     default:
+
         std::sort(first, last);
         break;
     }

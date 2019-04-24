@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <cstdint>
 #include "timed.hpp"
-#include "main.h"
 
 int main(int argc, char *argv[])
 {
