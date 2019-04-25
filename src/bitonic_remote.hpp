@@ -1,7 +1,5 @@
 #pragma once
 
-#include <iostream>
-#include <fstream>
 #include <cmath>
 #include <algorithm>
 #include <vector>
@@ -20,42 +18,48 @@
 template <typename T>
 class bitonic_remote
 {
-protected:
+public:
     typedef int tag_t;
+
+protected:
 
     virtual void send_mem(const T *d, size_t sz, size_t partner, tag_t tag) = 0;
     virtual void recv_mem(T *d, size_t sz, size_t partner, tag_t tag) = 0;
 
-private:
+    virtual void load_sec(size_t sec, size_t offset, T *d, size_t sz) = 0;
+    virtual void write_sec(size_t sec, size_t offset, const T *d, size_t sz) = 0;
+
+    bitonic_remote(size_t nmach, size_t nmem, size_t nsec)
+        : My(nmach), NMach(nmach), NMem(nmem), NSec(nsec), _d(new T[nmem]), _recv(new T[NMsg])
+    {
+        if (!IS_POW_2(nmach) || !IS_POW_2(nmem) || !IS_POW_2(nsec))
+            throw;
+    }
+
     typedef bool dir_t;
     static constexpr auto NMsg = X_MPI_MSG / sizeof(T);
-    const size_t My;
-    const size_t NMach;
-    const size_t NMem;
-    const size_t NSec;
-    std::fstream _f;
+    size_t My;
+    size_t NMach;
+    size_t NMem;
+    size_t NSec;
+
+private:
 
     T *_d;
     T *_recv;
 
-    void load_sec(size_t sec, size_t offset, T *d, size_t sz)
-    {
-        _f.seekg(NMem * sec + offset, std::ios::beg);
-        _f.read(reinterpret_cast<char *>(d), sizeof(T) * sz);
-    }
-
-    void write_sec(size_t sec, size_t offset, const T *d, size_t sz)
-    {
-        _f.seekg(NMem * sec + offset, std::ios::beg);
-        _f.write(reinterpret_cast<char *>(d), sizeof(T) * sz);
-    }
-
     void initial_sort_mem(dir_t dir)
     {
-        // TODO: respect dir
         quick_sort(_d, _d + NMem);
+        if (dir == DESC) // TODO
+            std::reverse(_d, _d + NMem);
     }
 
+    // Requires:
+    //     MEM[d, d + sz / 2)      is  dir-ordered
+    //     MEM[d + sz / 2, d + sz) is !dir-ordered
+    // Ensures:
+    //     MEM[d, d + sz)          is  dir-ordered
     void bitonic_sort_mem(T *d, size_t sz, dir_t dir)
     {
         while (sz >= 2)
@@ -68,11 +72,11 @@ private:
             }
 
             const size_t half = sz / 2;
-            for (auto i = 0; i < half; i++)
+            for (size_t i = 0; i < half; i++)
                 if (dir == ASC ? (d[i + half] < d[i]) : (d[i] < d[i + half]))
                     std::swap(d[i], d[i + half]);
 
-            bitonic_sort_mem(d + half, half);
+            bitonic_sort_mem(d + half, half, dir);
             sz = half;
         }
     }
@@ -173,8 +177,22 @@ private:
 
     // Requires:
     // Ensures:
+    //     F[my][0, NSec) is @dir-ordered all
+    void bitonic_sort_init(dir_t dir)
+    {
+        for (size_t i = 0; i < NSec; i++)
+        {
+            load_sec(i, 0, _d, NMem);
+            initial_sort_mem(dir); // TODO: dir
+            write_sec(i, 0, _d, NMem);
+        }
+    }
+
+    // Requires:
+    //     F[@all][0, NSec) is @dir-ordered each
+    // Ensures:
     //     F[@all][0, NSec) is @dir-ordered all
-    void bitonic_sort_all(dir_t dir, tag_t tag)
+    void bitonic_sort_merge(dir_t dir, tag_t tag)
     {
         const auto base_tag = tag << static_cast<int>(1 + std::log2(std::log2(NMach)));
         bitonic_sort_secs(0, NSec, dir);
@@ -183,13 +201,6 @@ private:
     }
 
 public:
-    bitonic_remote(size_t nmach, size_t nmem, size_t nsec, const std::string &fn)
-        : My(nmach), NMach(nmach), NMem(nmem), NSec(nsec), _f(fn, std::ios::binary), _d(new T[nmem]), _recv(new T[NMsg])
-    {
-        if (!IS_POW_2(nmach) || !IS_POW_2(nmem) || !IS_POW_2(nsec))
-            throw;
-    }
-
     virtual ~bitonic_remote()
     {
         delete _d;
@@ -199,6 +210,7 @@ public:
     void execute(size_t my)
     {
         My = my;
-        bitonic_sort_all(ASC, 0);
+        bitonic_sort_init(ASC);
+        bitonic_sort_merge(ASC, 0);
     }
 };

@@ -1,33 +1,24 @@
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <cstdint>
-#include "quick_sort.hpp"
-#include "timed.hpp"
+#include "bitonic_playground.hpp"
 
-#ifndef GRP
-#define GRP 1024
-#endif
-
-int main(int argc, char *argv[])
+int main()
 {
-    if (argc != 2)
-        return 1;
+    auto st = storage<size_t>{};
+    st.nmach = 4;
+    st.nmem = 2;
+    st.nsec = 4;
 
-    constexpr auto grp = GRP;
-    auto len = std::atoi(argv[1]);
-    auto buffer = new uint64_t[len];
+    st.data.resize(st.nmach);
+    st.data[0] = { 7, 4, 1, 3, 4, 6, 8, 9 };
+    st.data[1] = { 5, 2, 5, 8, 3, 7, 6, 9 };
+    st.data[2] = { 1, 3, 2, 4, 7, 3, 8, 3 };
+    st.data[3] = { 3, 4, 2, 7, 4, 6, 9, 2 };
 
-    std::cin.read(reinterpret_cast<char *>(buffer), sizeof(*buffer) * len);
-    {
-        timed t{};
-        for (auto ptr = buffer; ptr < buffer + len; ptr += grp)
-#ifndef STDSORT
-            quick_sort(ptr, ptr + grp);
-#else
-            std::sort(ptr, ptr + grp);
-#endif
-    }
-    std::cout.write(reinterpret_cast<const char *>(buffer), sizeof(*buffer) * len);
+    auto bi = bitonic_remote_playground<size_t>(&st);
+    bi.execute();
 
     return 0;
 }
