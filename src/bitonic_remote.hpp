@@ -76,7 +76,7 @@ protected:
     void execute(size_t my)
     {
         My = my;
-        bitonic_sort_init(ASC);
+        bitonic_sort_init((My % 2) == 0 ? ASC : DESC);
         bitonic_sort_merge(ASC, 0);
     }
 
@@ -100,8 +100,8 @@ private:
     }
 
     // Requires:
-    //     MEM[d, d + sz / 2)      is  dir-ordered
-    //     MEM[d + sz / 2, d + sz) is !dir-ordered
+    //     MEM[d, d + sz / 2)      is  x-ordered
+    //     MEM[d + sz / 2, d + sz) is !x-ordered
     // Ensures:
     //     MEM[d, d + sz)          is  dir-ordered
     void bitonic_sort_mem(T *d, size_t sz, dir_t dir)
@@ -126,8 +126,8 @@ private:
     }
 
     // Requires:
-    //     MEM[0, 0.5) is  dir-ordered
-    //     MEM[0.5, 1) is !dir-ordered
+    //     MEM[0, 0.5) is  x-ordered
+    //     MEM[0.5, 1) is !x-ordered
     // Ensures:
     //     MEM[0, 1)   is  dir-ordered
     void bitonic_sort_mem(dir_t dir)
@@ -136,31 +136,41 @@ private:
     }
 
     // Requires:
-    //     F[my][bsec, bsec + nsec / 2)        is  dir-ordered
-    //     F[my][bsec + nsec / 2, bsec + nsec) is !dir-ordered
+    //     F[my][bsec, bsec + nsec / 2)        is  x-ordered
+    //     F[my][bsec + nsec / 2, bsec + nsec) is !x-ordered
     // Ensures:
     //     F[my][bsec, bsec + nsec)            is  dir-ordered
     void bitonic_sort_secs(size_t bsec, size_t nsec, dir_t dir)
     {
         const auto half = NMem / 2;
-        while (nsec > 1)
+        while (nsec)
         {
+            if (nsec == 1)
+            {
+                load_sec(bsec, 0, _d, NMem);
+                bitonic_sort_mem(dir);
+                write_sec(bsec, 0, _d, NMem);
+                return;
+            }
+
             for (size_t i = 0; i < nsec / 2; i++)
             {
                 const auto lsec = bsec + i;
                 const auto rsec = bsec + i + nsec / 2;
+                const auto dl = _d;
+                const auto dr = _d + half;
 
-                load_sec(lsec, 0, _d, half);
-                load_sec(rsec, 0, _d + half, half);
+                load_sec(lsec, 0, dl, half);
+                load_sec(rsec, 0, dr, half);
                 bitonic_sort_mem(dir);
-                write_sec(lsec, 0, _d, half);
-                write_sec(rsec, 0, _d + half, half);
+                write_sec(lsec, 0, dl, half);
+                write_sec(rsec, 0, dr, half);
 
-                load_sec(lsec, half, _d, half);
-                load_sec(rsec, half, _d + half, half);
+                load_sec(lsec, half, dl, half);
+                load_sec(rsec, half, dr, half);
                 bitonic_sort_mem(dir);
-                write_sec(lsec, half, _d, half);
-                write_sec(rsec, half, _d + half, half);
+                write_sec(lsec, half, dl, half);
+                write_sec(rsec, half, dr, half);
             }
 
             bitonic_sort_secs(bsec + nsec / 2, nsec / 2, dir);
@@ -170,15 +180,17 @@ private:
 
     // If kind == ASC:
     // Requires:
-    //     F[my]     [0, NSec) is  dir-ordered
-    //     F[partner][0, NSec) is !dir-ordered
+    //     F[my]     [0, NSec) is  x-ordered
+    //     F[partner][0, NSec) is !x-ordered
     // Ensures:
-    //     F[my][0, NSec) <=dir=> F[partner][bsec, bsec + nsec)
+    //     F[my]     [0, NSec) is ^dir - ordered
+    //                    <=dir=>
+    //     F[partner][0, NSec) is vdir - ordered
     //
     // If kind == DESC:
     // Requires:
-    //     F[partner][0, NSec) is  dir-ordered
-    //     F[my]     [0, NSec) is !dir-ordered
+    //     F[partner][0, NSec) is  x-ordered
+    //     F[my]     [0, NSec) is !x-ordered
     // Ensures:
     //     F[partner][0, NSec) is ^dir - ordered
     //                    <=dir=>
@@ -192,13 +204,15 @@ private:
             load_sec(sec, 0, _d, NMem);
             for (auto ptr = _d; ptr < _d + NMem; ptr += NMsg)
             {
-                const auto mx = std::min(NMsg, static_cast<size_t>(_d - ptr));
+                const auto mx = std::min(NMsg, static_cast<size_t>(_d + NMem - ptr));
                 const auto tg = base_tag | (ptr - _d) / NMem;
                 send_mem(ptr, mx, partner, tg);
                 recv_mem(_recv, mx, partner, tg);
                 for (size_t i = 0; i < NMem - (ptr - _d); i++)
-                    if ((dir == ASC) != (kind == ASC) ? (*ptr < _recv[i]) : (_recv[i] < *ptr))
-                        *ptr = _recv[i];
+                    if (((dir == ASC) != (kind == ASC))
+                        ? (_recv[i] < ptr[i])
+                        : (ptr[i] < _recv[i]))
+                        ptr[i] = _recv[i];
             }
             write_sec(sec, 0, _d, NMem);
         }
@@ -222,15 +236,16 @@ private:
 
     // Requires:
     // Ensures:
-    //     F[my][0, NSec) is @dir-ordered all
+    //     F[my][0, NSec) is  dir-ordered
     void bitonic_sort_init(dir_t dir)
     {
-        for (size_t i = 0; i < NSec; i++)
+        for (size_t p = 0; p < std::log2(NSec); p++)
         {
-            load_sec(i, 0, _d, NMem);
-            initial_sort_mem(dir); // TODO: dir
-            write_sec(i, 0, _d, NMem);
+            const auto nsec = static_cast<size_t>(1) << p;
+            for (size_t i = 0; i < NSec; i += nsec)
+                bitonic_sort_secs(i, nsec, ((i / nsec) % 2 == 0) ? ASC : DESC);
         }
+        bitonic_sort_secs(0, NSec, dir);
     }
 
     // Requires:
@@ -240,8 +255,11 @@ private:
     void bitonic_sort_merge(dir_t dir, tag_t tag)
     {
         const auto base_tag = tag << static_cast<int>(1 + std::log2(std::log2(NMach)));
-        bitonic_sort_secs(0, NSec, dir);
         for (size_t p = 0; p < std::log2(NMach); p++)
-            bitonic_sort_prefix(p, dir, base_tag | p);
+        {
+            const auto dirx = ((My >> (p + 1)) % 2 == 0) ? ASC : DESC;
+            const auto diry = (dirx != dir) ? DESC : ASC;
+            bitonic_sort_prefix(p, diry, base_tag | p);
+        }
     }
 };

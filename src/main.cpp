@@ -22,8 +22,9 @@ int main()
 
     for (size_t i = 0; i < st.nmach; i++)
     {
+        std::cout << "Final[" << i << "]=";
         for (size_t j = 0; j < st.nmem * st.nsec; j++)
-            std::cout << st.data[i][j] << " ";
+            std::cout << " " << st.data[i][j];
         std::cout << std::endl;
     }
 

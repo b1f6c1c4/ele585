@@ -70,10 +70,10 @@ private:
             std::unique_lock<std::mutex> l(_mu);
             _cv.wait(l, [tag, this]{ return !_qs[tag].empty(); });
             decltype(auto) recv = _qs[tag].front();
-            _qs[tag].pop();
             if (recv.size() != sz)
                 throw;
             std::copy(recv.begin(), recv.end(), d);
+            _qs[tag].pop();
         }
     };
 
@@ -105,8 +105,8 @@ private:
             {
                 std::lock_guard<std::mutex> l{_mu0};
                 std::cout
-                    << bitonic_remote<T>::My << " sent " << sz << " numbers to "
-                    << partner << " with tag " << std::hex << tag << ":";
+                    << bitonic_remote<T>::My << " -> " << partner
+                    << "(#" << std::hex << tag << "):";
                 for (size_t i = 0; i < sz; i++)
                     std::cout << " " << d[i];
                 std::cout << std::endl;
@@ -122,8 +122,8 @@ private:
             {
                 std::lock_guard<std::mutex> l{_mu0};
                 std::cout
-                    << bitonic_remote<T>::My << " got " << sz << " numbers from "
-                    << partner << " with tag " << std::hex << tag << ":";
+                    << bitonic_remote<T>::My << " <- " << partner
+                    << "(#" << std::hex << tag << "):";
                 for (size_t i = 0; i < sz; i++)
                     std::cout << " " << d[i];
                 std::cout << std::endl;
@@ -139,8 +139,8 @@ private:
             {
                 std::lock_guard<std::mutex> l{_mu0};
                 std::cout
-                    << bitonic_remote<T>::My << " reads " << sz << " numbers from "
-                    << "section " << sec << " offset " << offset << ":";
+                    << bitonic_remote<T>::My << " RD "
+                    << "#" << sec << "[" << offset << "]:";
                 for (size_t i = 0; i < sz; i++)
                     std::cout << " " << d[i];
                 std::cout << std::endl;
@@ -149,19 +149,23 @@ private:
 
         virtual void write_sec(size_t sec, size_t offset, const T *d, size_t sz) override
         {
-            {
-                std::lock_guard<std::mutex> l{_mu0};
-                std::cout
-                    << bitonic_remote<T>::My << " writes " << sz << " numbers to "
-                    << "section " << sec << " offset " << offset << ":";
-                for (size_t i = 0; i < sz; i++)
-                    std::cout << " " << d[i];
-                std::cout << std::endl;
-            }
-
             auto base = _st->data[bitonic_remote<T>::My].begin()
                 + bitonic_remote<T>::NMem * sec + offset;
             std::copy(d, d + sz, base);
+
+            {
+                std::lock_guard<std::mutex> l{_mu0};
+                std::cout
+                    << bitonic_remote<T>::My << " WR "
+                    << "#" << sec << "[" << offset << "]:";
+                for (size_t i = 0; i < sz; i++)
+                    std::cout << " " << d[i];
+                std::cout << std::endl;
+                std::cout << bitonic_remote<T>::My << " : ";
+                for (decltype(auto) v : _st->data[bitonic_remote<T>::My])
+                    std::cout << " " << v;
+                std::cout << std::endl;
+            }
         }
     };
 };
