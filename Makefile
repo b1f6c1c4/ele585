@@ -1,5 +1,5 @@
 DEPFLAGS=-MT $@ -MMD -MP -MF $(patsubst %.o,%.Td,$@)
-CXX=g++ -std=c++17 -O3 -Wall -Werror -Wextra $(DEPFLAGS) -pthread
+CXX=g++ -std=c++17 -O3 -Wall -Werror -Wextra -pthread $(DEPFLAGS)
 POSTCOMPILE=@mv -f $(patsubst %.o,%.Td,$@) $(patsubst %.o,%.d,$@) && touch $@
 SRCS=gen/generator.cpp gen/main.cpp src/main.cpp
 
@@ -33,4 +33,4 @@ src/sn_sort.hpp: bin/sn-gen
 
 bin/sn-mpi: obj/src/main.o
 	@mkdir -p $(shell dirname "$@")
-	$(CXX) -lpthread -o $@ $^
+	$(CXX) -o $@ $^

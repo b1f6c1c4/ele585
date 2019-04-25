@@ -192,9 +192,10 @@ private:
             load_sec(sec, 0, _d, NMem);
             for (auto ptr = _d; ptr < _d + NMem; ptr += NMsg)
             {
+                const auto mx = std::min(NMsg, static_cast<size_t>(_d - ptr));
                 const auto tg = base_tag | (ptr - _d) / NMem;
-                send_mem(ptr, NMsg, partner, tg);
-                recv_mem(_recv, NMsg, partner, tg);
+                send_mem(ptr, mx, partner, tg);
+                recv_mem(_recv, mx, partner, tg);
                 for (size_t i = 0; i < NMem - (ptr - _d); i++)
                     if ((dir == ASC) != (kind == ASC) ? (*ptr < _recv[i]) : (_recv[i] < *ptr))
                         *ptr = _recv[i];

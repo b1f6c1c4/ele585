@@ -20,5 +20,12 @@ int main()
     auto bi = bitonic_remote_playground<size_t>(&st);
     bi.execute();
 
+    for (size_t i = 0; i < st.nmach; i++)
+    {
+        for (size_t j = 0; j < st.nmem * st.nsec; j++)
+            std::cout << st.data[i][j] << " ";
+        std::cout << std::endl;
+    }
+
     return 0;
 }

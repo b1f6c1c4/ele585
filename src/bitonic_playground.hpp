@@ -28,7 +28,7 @@ public:
     bitonic_remote_playground(storage<T> *st)
     {
         for (size_t i = 0; i < st->nmach; i++)
-            _stubs.emplace_back(i, st);
+            _stubs.emplace_back(i, st, _mu0, &_queues);
         for (size_t i = 0; i < st->nmach; i++)
         {
             _queues.emplace_back();
@@ -77,15 +77,20 @@ private:
         }
     };
 
+    std::mutex _mu0;
     std::vector<stub> _stubs;
     std::vector<std::vector<std::shared_ptr<Channel>>> _queues;
 
     class stub : protected bitonic_remote<T>
     {
         size_t _my;
+        std::mutex &_mu0;
+        storage<T> *_st;
+        std::vector<std::vector<std::shared_ptr<Channel>>> *_queues;
     public:
-        stub(size_t my, storage<T> *st)
-            : bitonic_remote<T>(st->nmach, st->nmem, st->nsec), _my(my) { }
+        stub(size_t my, storage<T> *st, std::mutex &mu0, std::vector<std::vector<std::shared_ptr<Channel>>> *queues)
+            : bitonic_remote<T>(st->nmach, st->nmem, st->nsec),
+              _my(my), _mu0(mu0), _st(st), _queues(queues) { }
 
         void execute()
         {
@@ -97,59 +102,66 @@ private:
 
         virtual void send_mem(const T *d, size_t sz, size_t partner, tag_t tag) override
         {
-            std::cout
-                << bitonic_remote<T>::My << " sent " << sz << " numbers to "
-                << partner << " with tag " << std::ios::hex << tag << ":";
-            for (size_t i = 0; i < sz; i++)
-                std::cout << " " << d[i];
-            std::cout << std::endl;
+            {
+                std::lock_guard<std::mutex> l{_mu0};
+                std::cout
+                    << bitonic_remote<T>::My << " sent " << sz << " numbers to "
+                    << partner << " with tag " << std::hex << tag << ":";
+                for (size_t i = 0; i < sz; i++)
+                    std::cout << " " << d[i];
+                std::cout << std::endl;
+            }
 
             (*_queues)[bitonic_remote<T>::My][partner]->send(d, sz, tag);
         }
 
         virtual void recv_mem(T *d, size_t sz, size_t partner, tag_t tag) override
         {
-            std::cout
-                << bitonic_remote<T>::My << " got " << sz << " numbers from "
-                << partner << " with tag " << std::ios::hex << tag << ":";
-
             (*_queues)[partner][bitonic_remote<T>::My]->recv(d, sz, tag);
 
-            for (size_t i = 0; i < sz; i++)
-                std::cout << " " << d[i];
-            std::cout << std::endl;
+            {
+                std::lock_guard<std::mutex> l{_mu0};
+                std::cout
+                    << bitonic_remote<T>::My << " got " << sz << " numbers from "
+                    << partner << " with tag " << std::hex << tag << ":";
+                for (size_t i = 0; i < sz; i++)
+                    std::cout << " " << d[i];
+                std::cout << std::endl;
+            }
         }
 
         virtual void load_sec(size_t sec, size_t offset, T *d, size_t sz) override
         {
-            std::cout
-                << bitonic_remote<T>::My << " reads " << sz << " numbers from "
-                << "section " << sec << " offset " << offset << ":";
-
             auto base = _st->data[bitonic_remote<T>::My].begin()
                 + bitonic_remote<T>::NMem * sec + offset;
             std::copy(base, base + sz, d);
 
-            for (size_t i = 0; i < sz; i++)
-                std::cout << " " << d[i];
-            std::cout << std::endl;
+            {
+                std::lock_guard<std::mutex> l{_mu0};
+                std::cout
+                    << bitonic_remote<T>::My << " reads " << sz << " numbers from "
+                    << "section " << sec << " offset " << offset << ":";
+                for (size_t i = 0; i < sz; i++)
+                    std::cout << " " << d[i];
+                std::cout << std::endl;
+            }
         }
 
         virtual void write_sec(size_t sec, size_t offset, const T *d, size_t sz) override
         {
-            std::cout
-                << bitonic_remote<T>::My << " writes " << sz << " numbers to "
-                << "section " << sec << " offset " << offset << ":";
-            for (size_t i = 0; i < sz; i++)
-                std::cout << " " << d[i];
-            std::cout << std::endl;
+            {
+                std::lock_guard<std::mutex> l{_mu0};
+                std::cout
+                    << bitonic_remote<T>::My << " writes " << sz << " numbers to "
+                    << "section " << sec << " offset " << offset << ":";
+                for (size_t i = 0; i < sz; i++)
+                    std::cout << " " << d[i];
+                std::cout << std::endl;
+            }
 
             auto base = _st->data[bitonic_remote<T>::My].begin()
                 + bitonic_remote<T>::NMem * sec + offset;
             std::copy(d, d + sz, base);
         }
-
-        storage<T> *_st;
-        std::vector<std::vector<std::shared_ptr<Channel>>> *_queues;
     };
 };
