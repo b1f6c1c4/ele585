@@ -6,7 +6,7 @@
 #include <cstdint>
 #include "quick_sort.hpp"
 
-#define IS_POW_2(x) (!(x) && !((x) & ((x) - 1)))
+#define IS_POW_2(x) ((x) && !((x) & ((x) - 1)))
 
 #ifndef X_MPI_MSG
 #define X_MPI_MSG static_cast<size_t>(32ull * 1024ull * 1024ull) // 32MiB
@@ -34,6 +34,50 @@ protected:
     {
         if (!IS_POW_2(nmach) || !IS_POW_2(nmem) || !IS_POW_2(nsec))
             throw;
+    }
+
+    virtual ~bitonic_remote()
+    {
+        delete _d;
+        delete _recv;
+    }
+
+    bitonic_remote(const bitonic_remote &) = delete;
+    bitonic_remote(bitonic_remote &&other) noexcept
+        : My(other.My), NMach(other.NMach), NMem(other.NMem), NSec(other.NSec), _d(other._d), _recv(other._recv)
+    {
+        other._d = nullptr;
+        other._recv = nullptr;
+    }
+
+    bitonic_remote &operator=(const bitonic_remote &) = delete;
+    bitonic_remote &operator=(bitonic_remote &&other) noexcept
+    {
+        if (this == *other)
+            return *this;
+
+        My = other.My;
+        NMach = other.NMach;
+        NMem = other.NMem;
+        NSec = other.NSec;
+
+        delete _d;
+        delete _recv;
+
+        _d = other._d;
+        _recv = other._recv;
+
+        other._d = nullptr;
+        other._recv = nullptr;
+
+        return *this;
+    }
+
+    void execute(size_t my)
+    {
+        My = my;
+        bitonic_sort_init(ASC);
+        bitonic_sort_merge(ASC, 0);
     }
 
     typedef bool dir_t;
@@ -198,19 +242,5 @@ private:
         bitonic_sort_secs(0, NSec, dir);
         for (size_t p = 0; p < std::log2(NMach); p++)
             bitonic_sort_prefix(p, dir, base_tag | p);
-    }
-
-public:
-    virtual ~bitonic_remote()
-    {
-        delete _d;
-        delete _recv;
-    }
-
-    void execute(size_t my)
-    {
-        My = my;
-        bitonic_sort_init(ASC);
-        bitonic_sort_merge(ASC, 0);
     }
 };

@@ -26,20 +26,22 @@ class bitonic_remote_playground
 
 public:
     bitonic_remote_playground(storage<T> *st)
-        : _queues(st->nmach, std::vector<std::shared_ptr<Channel>>(st->nmach))
     {
         for (size_t i = 0; i < st->nmach; i++)
             _stubs.emplace_back(i, st);
         for (size_t i = 0; i < st->nmach; i++)
+        {
+            _queues.emplace_back();
             for (size_t j = 0; j < st->nmach; j++)
-                _queues[i][j] = std::make_shared<Channel>();
+                _queues[i].emplace_back(std::make_shared<Channel>());
+        }
     }
 
     void execute()
     {
         std::vector<std::thread> ths;
         for (size_t i = 0; i < _stubs.size(); i++)
-            ths.emplace_back(&bitonic_remote<T>::execute, &_stubs[i], i);
+            ths.emplace_back(&stub::execute, &_stubs[i]);
         for (decltype(auto) th : ths)
             th.join();
     }
@@ -78,33 +80,70 @@ private:
     std::vector<stub> _stubs;
     std::vector<std::vector<std::shared_ptr<Channel>>> _queues;
 
-    class stub : public bitonic_remote<T>
+    class stub : protected bitonic_remote<T>
     {
+        size_t _my;
     public:
-        stub(size_t my, storage<T> *st) : bitonic_remote<T>(my, st->nmem, st->nsec) { }
+        stub(size_t my, storage<T> *st)
+            : bitonic_remote<T>(st->nmach, st->nmem, st->nsec), _my(my) { }
+
+        void execute()
+        {
+            bitonic_remote<T>::execute(_my);
+        }
 
     protected:
         typedef typename bitonic_remote<T>::tag_t tag_t;
 
         virtual void send_mem(const T *d, size_t sz, size_t partner, tag_t tag) override
         {
+            std::cout
+                << bitonic_remote<T>::My << " sent " << sz << " numbers to "
+                << partner << " with tag " << std::ios::hex << tag << ":";
+            for (size_t i = 0; i < sz; i++)
+                std::cout << " " << d[i];
+            std::cout << std::endl;
+
             (*_queues)[bitonic_remote<T>::My][partner]->send(d, sz, tag);
         }
 
         virtual void recv_mem(T *d, size_t sz, size_t partner, tag_t tag) override
         {
+            std::cout
+                << bitonic_remote<T>::My << " got " << sz << " numbers from "
+                << partner << " with tag " << std::ios::hex << tag << ":";
+
             (*_queues)[partner][bitonic_remote<T>::My]->recv(d, sz, tag);
+
+            for (size_t i = 0; i < sz; i++)
+                std::cout << " " << d[i];
+            std::cout << std::endl;
         }
 
         virtual void load_sec(size_t sec, size_t offset, T *d, size_t sz) override
         {
+            std::cout
+                << bitonic_remote<T>::My << " reads " << sz << " numbers from "
+                << "section " << sec << " offset " << offset << ":";
+
             auto base = _st->data[bitonic_remote<T>::My].begin()
                 + bitonic_remote<T>::NMem * sec + offset;
             std::copy(base, base + sz, d);
+
+            for (size_t i = 0; i < sz; i++)
+                std::cout << " " << d[i];
+            std::cout << std::endl;
         }
 
         virtual void write_sec(size_t sec, size_t offset, const T *d, size_t sz) override
         {
+            std::cout
+                << bitonic_remote<T>::My << " writes " << sz << " numbers to "
+                << "section " << sec << " offset " << offset << ":";
+            for (size_t i = 0; i < sz; i++)
+                std::cout << " " << d[i];
+            std::cout << std::endl;
+
             auto base = _st->data[bitonic_remote<T>::My].begin()
                 + bitonic_remote<T>::NMem * sec + offset;
             std::copy(d, d + sz, base);
