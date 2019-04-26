@@ -110,9 +110,15 @@ private:
     T *_d;
     T *_recv;
 
-    void initial_sort_mem(dir_t dir)
+    void initial_sort_mem(size_t sec, dir_t dir)
     {
-        quick_sort(_d, _d + NMem, dir == DESC);
+        load_sec(sec, 0, _d, NMem);
+        // TODO
+        // quick_sort(_d, _d + NMem, dir == DESC);
+        std::sort(_d, _d + NMem);
+        if (dir == DESC)
+            std::reverse(_d, _d + NMem);
+        write_sec(sec, 0, _d, NMem);
     }
 
     // Requires:
@@ -152,6 +158,21 @@ private:
     }
 
     // Requires:
+    //     [0, NMem / 2)    is  x-ordered
+    //     [NMem / 2, NMem) is !x-ordered
+    // Ensures:
+    //     [0, NMem / 2)    is ^dir - ordered
+    //                    <=dir=>
+    //     [NMem / 2, NMem) is vdir - ordered
+    void bitonic_mem_pair(dir_t dir)
+    {
+        const size_t half = NMem / 2;
+        for (size_t i = 0; i < half; i++)
+            if (dir == ASC ? (_d[i + half] < _d[i]) : (_d[i] < _d[i + half]))
+                std::swap(_d[i], _d[i + half]);
+    }
+
+    // Requires:
     //     F[my][bsec, bsec + nsec / 2)        is  x-ordered
     //     F[my][bsec + nsec / 2, bsec + nsec) is !x-ordered
     // Ensures:
@@ -178,13 +199,13 @@ private:
 
                 load_sec(lsec, 0, dl, half);
                 load_sec(rsec, 0, dr, half);
-                bitonic_sort_mem(dir);
+                bitonic_mem_pair(dir);
                 write_sec(lsec, 0, dl, half);
                 write_sec(rsec, 0, dr, half);
 
                 load_sec(lsec, half, dl, half);
                 load_sec(rsec, half, dr, half);
-                bitonic_sort_mem(dir);
+                bitonic_mem_pair(dir);
                 write_sec(lsec, half, dl, half);
                 write_sec(rsec, half, dr, half);
             }
@@ -256,15 +277,21 @@ private:
     //     F[my][0, NSec) is  dir-ordered
     void bitonic_sort_init(dir_t dir)
     {
-        for (size_t p = 0; p < std::log2(NSec); p++)
+        LOG("Mach ", My, " init level ", 0);
+        for (size_t i = 0; i < NSec; i++)
+            initial_sort_mem(i, (i % 2 == 0) ? ASC : DESC);
+        for (size_t p = 1; p < std::log2(NSec); p++)
         {
             LOG("Mach ", My, " init level ", p);
             const auto nsec = static_cast<size_t>(1) << p;
             for (size_t i = 0; i < NSec; i += nsec)
                 bitonic_sort_secs(i, nsec, ((i / nsec) % 2 == 0) ? ASC : DESC);
         }
-        LOG("Mach ", My, " init level ", std::log2(NSec));
-        bitonic_sort_secs(0, NSec, dir);
+        if (NSec > 1)
+        {
+            LOG("Mach ", My, " init level ", std::log2(NSec));
+            bitonic_sort_secs(0, NSec, dir);
+        }
     }
 
     // Requires:

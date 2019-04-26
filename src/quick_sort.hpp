@@ -73,12 +73,12 @@ void quick_sort(Iter begin, Iter end, bool reversed, size_t max_depth)
 
         if (dL >= dR)
         {
-            quick_sort(lr.second + 1, end, max_depth - 1);
+            quick_sort(lr.second + 1, end, reversed, max_depth - 1);
             end = lr.first;
         }
         else
         {
-            quick_sort(begin, lr.first, max_depth - 1);
+            quick_sort(begin, lr.first, reversed, max_depth - 1);
             begin = lr.second + 1;
         }
 
