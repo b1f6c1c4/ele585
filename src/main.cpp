@@ -1,32 +1,38 @@
 #include <iostream>
-#include <fstream>
 #include <algorithm>
 #include <cstdint>
-#include "bitonic_playground.hpp"
+#include <climits>
+#include <mpi.h>
+#include "bitonic_mpi.hpp"
 
-int main()
+#if SIZE_MAX == UCHAR_MAX
+#define MPI_SIZE_T MPI_UNSIGNED_CHAR
+#elif SIZE_MAX == USHRT_MAX
+#define MPI_SIZE_T MPI_UNSIGNED_SHORT
+#elif SIZE_MAX == UINT_MAX
+#define MPI_SIZE_T MPI_UNSIGNED
+#elif SIZE_MAX == ULONG_MAX
+#define MPI_SIZE_T MPI_UNSIGNED_LONG
+#elif SIZE_MAX == ULLONG_MAX
+#define MPI_SIZE_T MPI_UNSIGNED_LONG_LONG
+#endif
+
+int main(int argc, char *argv[])
 {
-    auto st = storage<size_t>{};
-    st.nmach = 4;
-    st.nmem = 2;
-    st.nsec = 4;
+    MPI_Init(&argc, &argv);
 
-    st.data.resize(st.nmach);
-    st.data[0] = { 7, 4, 1, 3, 4, 6, 8, 9 };
-    st.data[1] = { 5, 2, 5, 8, 3, 7, 6, 9 };
-    st.data[2] = { 1, 3, 2, 4, 7, 3, 8, 3 };
-    st.data[3] = { 3, 4, 2, 7, 4, 6, 9, 2 };
+    if (argc != 4)
+        return 1;
 
-    auto bi = bitonic_remote_playground<size_t>(&st);
-    bi.execute();
+    const size_t nmem = std::atoi(argv[1]);
+    const size_t nsec = std::atoi(argv[2]);
 
-    for (size_t i = 0; i < st.nmach; i++)
-    {
-        std::cout << "Final[" << i << "]=";
-        for (size_t j = 0; j < st.nmem * st.nsec; j++)
-            std::cout << " " << st.data[i][j];
-        std::cout << std::endl;
-    }
+    int nmach, my;
+    MPI_Comm_size(MPI_COMM_WORLD, &nmach);
+    MPI_Comm_rank(MPI_COMM_WORLD, &my);
 
-    return 0;
+    bitonic_remote_mpi<size_t> sorter(nmach, nmem, nsec, argv[3]);
+    sorter.execute(my);
+
+    MPI_Finalize();
 }

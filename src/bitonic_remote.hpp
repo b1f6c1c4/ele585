@@ -21,21 +21,6 @@ class bitonic_remote
 public:
     typedef int tag_t;
 
-protected:
-
-    virtual void send_mem(const T *d, size_t sz, size_t partner, tag_t tag) = 0;
-    virtual void recv_mem(T *d, size_t sz, size_t partner, tag_t tag) = 0;
-
-    virtual void load_sec(size_t sec, size_t offset, T *d, size_t sz) = 0;
-    virtual void write_sec(size_t sec, size_t offset, const T *d, size_t sz) = 0;
-
-    bitonic_remote(size_t nmach, size_t nmem, size_t nsec)
-        : My(nmach), NMach(nmach), NMem(nmem), NSec(nsec), _d(new T[nmem]), _recv(new T[NMsg])
-    {
-        if (!IS_POW_2(nmach) || !IS_POW_2(nmem) || !IS_POW_2(nsec))
-            throw;
-    }
-
     virtual ~bitonic_remote()
     {
         delete _d;
@@ -78,6 +63,21 @@ protected:
         My = my;
         bitonic_sort_init((My % 2) == 0 ? ASC : DESC);
         bitonic_sort_merge(ASC, 0);
+    }
+
+protected:
+
+    virtual void send_mem(const T *d, size_t sz, size_t partner, tag_t tag) = 0;
+    virtual void recv_mem(T *d, size_t sz, size_t partner, tag_t tag) = 0;
+
+    virtual void load_sec(size_t sec, size_t offset, T *d, size_t sz) = 0;
+    virtual void write_sec(size_t sec, size_t offset, const T *d, size_t sz) = 0;
+
+    bitonic_remote(size_t nmach, size_t nmem, size_t nsec)
+        : My(nmach), NMach(nmach), NMem(nmem), NSec(nsec), _d(new T[nmem]), _recv(new T[NMsg])
+    {
+        if (!IS_POW_2(nmach) || !IS_POW_2(nmem) || !IS_POW_2(nsec))
+            throw;
     }
 
     typedef bool dir_t;

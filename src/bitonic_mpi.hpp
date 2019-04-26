@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <mpi.h>
 #include "bitonic_remote.hpp"
 
 template <typename T>
@@ -12,12 +13,24 @@ private:
 protected:
     virtual void send_mem(const T *d, size_t sz, size_t partner, tag_t tag) override
     {
-        // TODO
+        std::cerr
+            << bitonic_remote<T>::My << " -> " << partner
+            << " (" << std::hex << tag << ") "
+            << sz << std::endl;
+        MPI_Send(
+                reinterpret_cast<const void *>(d), sz * sizeof(T),
+                MPI_UNSIGNED_CHAR, partner, tag, MPI_COMM_WORLD);
     }
 
     virtual void recv_mem(T *d, size_t sz, size_t partner, tag_t tag)override
     {
-        // TODO
+        std::cerr
+            << bitonic_remote<T>::My << " <- " << partner
+            << " (" << std::hex << tag << ") "
+            << sz << std::endl;
+        MPI_Recv(
+                reinterpret_cast<void *>(d), sz * sizeof(T),
+                MPI_UNSIGNED_CHAR, partner, tag, MPI_COMM_WORLD, nullptr);
     }
 
     virtual void load_sec(size_t sec, size_t offset, T *d, size_t sz)override
@@ -28,7 +41,7 @@ protected:
     virtual void write_sec(size_t sec, size_t offset, const T *d, size_t sz)override
     {
         _f.seekg(bitonic_remote<T>::NMem * sec + offset, std::ios::beg);
-        _f.write(reinterpret_cast<char *>(d), sizeof(T) * sz);
+        _f.write(reinterpret_cast<const char *>(d), sizeof(T) * sz);
     }
 
     std::fstream _f;

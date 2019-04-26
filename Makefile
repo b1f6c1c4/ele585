@@ -1,5 +1,5 @@
 DEPFLAGS=-MT $@ -MMD -MP -MF $(patsubst %.o,%.Td,$@)
-CXX=g++ -std=c++17 -O3 -Wall -Werror -Wextra -pthread $(DEPFLAGS)
+CXX=mpic++ -std=c++17 -O3 -Wall -Werror -Wextra $(DEPFLAGS)
 POSTCOMPILE=@mv -f $(patsubst %.o,%.Td,$@) $(patsubst %.o,%.d,$@) && touch $@
 SRCS=gen/generator.cpp gen/main.cpp src/main.cpp
 
