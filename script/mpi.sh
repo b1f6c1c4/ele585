@@ -2,38 +2,70 @@
 #
 #SBATCH --job-name=ele585
 #SBATCH --output=./data/mpi.out
-#
-#SBATCH --ntasks=16
-#SBATCH --mem-per-cpu=160
-#SBATCH --time=1:00:00
 
 set -euo pipefail
 
-F0=/tigress/jinzheng/input
+# Usage:
+#
+#     To sort file(s) /tigress/jinzheng/input-*,
+#         using 16 processes within 1 hour,
+#         each with 8192MiB main buffer & 32MiB peer buffer:
+#
+#     sbatch -n 16 --mem 8500 -t 1:00:00 \
+#         script/mpi.sh 8192 32 /tigress/jinzheng/input-*
+#
+#     Note:
+#         If only 1 file is specified, then it will be splitted;
+#         otherwise, -n must match the number of files.
 
-./script/split-file.sh "$F0" "$SLURM_NPROCS"
+MEM="$1"
+shift
+MSG="$1"
+shift
 
-FILES=()
-for I in $(seq 0 $(($SLURM_NPROCS-1))); do
-    FILES+=("$F0-$I")
-done
+if [ "$#" -eq "$SLURM_NPROCS" ]; then
+    XSZ=
+    FILES=()
+    while [ "$#" -gt "0" ]; do
+        SZ="$(stat --printf="%s" "$1")"
+        if [ ! -z "$XSZ" ] && [ "$SZ" -ne "$XSZ" ]; then
+            echo "File sizes not equal"
+            exit 2
+        fi
+        XSZ="$SZ"
+        FILES+=("$1")
+        shift
+    done
+elif [ "$#" -eq "1" ]; then
+    F0="$1"
 
-echo "All data should have been stored on" "${FILES[@]}"
+    FILES=()
+    for I in $(seq 0 $(($SLURM_NPROCS-1))); do
+        FILES+=("$F0-$I")
+    done
 
-# Number of bytes, total input
-SZ="$(stat --printf="%s" "$F0")"
+    echo "File partition started at $(date -Ins)"
+    ./script/split-file.sh "$F0" "$SLURM_NPROCS"
+
+    SZ="$(stat --printf="%s" "$F0")"
+    XSZ="$(($SZ / $SLURM_NPROCS))"
+else
+    echo "File numbers not match"
+    exit 2
+fi
+
 # Number of size_t entries in main buffer, single shard
-NMEM="$((128 * 1024 * 1024 / 8))" # 128 MiB
+NMEM="$(($MEM * 1024 * 1024 / 8))"
 # Number of size_t entries in peer buffer, single shard
-NMSG="$((32 * 1024 * 1024 / 8))" # 32 MiB
-if [ "$((8 * $SLURM_NPROCS * $NMEM))" -gt "$SZ" ]; then
-    NMEM="$(($SZ / 8 / $SLURM_NPROCS))"
+NMSG="$(($MSG * 1024 * 1024 / 8))"
+if [ "$((8 * $NMEM))" -gt "$XSZ" ]; then
+    NMEM="$(($XSZ / 8))"
 fi
 # Number of sections, single shard
-NSEC="$(($SZ / 8 / $SLURM_NPROCS / $NMEM))"
+NSEC="$(($XSZ / 8))"
 
 echo "Sort started at $(date -Ins)"
-mpirun ./bin/sn-mpi "$NMEM" "$NSEC" "$NMSG" "${FILES[@]}"
+/usr/bin/time --verbose mpirun ./bin/sn-mpi "$NMEM" "$NSEC" "$NMSG" "${FILES[@]}"
 echo "Sort completed at $(date -Ins)"
 
-echo "All data has been sorted and written to" "${FILES[@]}"
+printf '%s\n' "All data has been sorted and written to" "${FILES[@]}"
