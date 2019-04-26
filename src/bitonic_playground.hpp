@@ -14,6 +14,7 @@ struct storage
     size_t nmach;
     size_t nmem;
     size_t nsec;
+    size_t nmsg;
 
     std::vector<std::vector<T>> data;
 };
@@ -89,7 +90,7 @@ private:
         std::vector<std::vector<std::shared_ptr<Channel>>> *_queues;
     public:
         stub(size_t my, storage<T> *st, std::mutex &mu0, std::vector<std::vector<std::shared_ptr<Channel>>> *queues)
-            : bitonic_remote<T>(st->nmach, st->nmem, st->nsec),
+            : bitonic_remote<T>(st->nmach, st->nmem, st->nsec, st->nmsg),
               _my(my), _mu0(mu0), _st(st), _queues(queues) { }
 
         void execute()
@@ -100,7 +101,9 @@ private:
     protected:
         typedef typename bitonic_remote<T>::tag_t tag_t;
 
-        virtual void send_mem(const T *d, size_t sz, size_t partner, tag_t tag) override
+        virtual void exchange_mem(
+            size_t sz, size_t partner, tag_t tag,
+            const T *source, T *dest) override
         {
             {
                 std::lock_guard<std::mutex> l{_mu0};
@@ -108,16 +111,12 @@ private:
                     << bitonic_remote<T>::My << " -> " << partner
                     << " (#" << std::hex << tag << std::dec << "):";
                 for (size_t i = 0; i < sz; i++)
-                    std::cout << " " << d[i];
+                    std::cout << " " << source[i];
                 std::cout << std::endl;
             }
 
-            (*_queues)[bitonic_remote<T>::My][partner]->send(d, sz, tag);
-        }
-
-        virtual void recv_mem(T *d, size_t sz, size_t partner, tag_t tag) override
-        {
-            (*_queues)[partner][bitonic_remote<T>::My]->recv(d, sz, tag);
+            (*_queues)[bitonic_remote<T>::My][partner]->send(source, sz, tag);
+            (*_queues)[partner][bitonic_remote<T>::My]->recv(dest, sz, tag);
 
             {
                 std::lock_guard<std::mutex> l{_mu0};
@@ -125,7 +124,7 @@ private:
                     << bitonic_remote<T>::My << " <- " << partner
                     << " (#" << std::hex << tag << std::dec << "):";
                 for (size_t i = 0; i < sz; i++)
-                    std::cout << " " << d[i];
+                    std::cout << " " << dest[i];
                 std::cout << std::endl;
             }
         }

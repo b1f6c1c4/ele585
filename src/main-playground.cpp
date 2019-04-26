@@ -10,6 +10,7 @@ int main()
     st.nmach = 4;
     st.nmem = 2;
     st.nsec = 4;
+    st.nmsg = 1;
 
     st.data.resize(st.nmach);
     st.data[0] = { 7, 4, 1, 3, 4, 6, 8, 9 };

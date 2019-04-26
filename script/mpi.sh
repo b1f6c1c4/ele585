@@ -20,9 +20,10 @@ echo "All data should have been stored on" "${FILES[@]}"
 
 # Number of bytes, total input
 SZ="$(stat --printf="%s" "$F0")"
-
-# Number of size_t entries, single shard
+# Number of size_t entries in main buffer, single shard
 NMEM="$((128 * 1024 * 1024 / 8))" # 128 MiB
+# Number of size_t entries in peer buffer, single shard
+NMSG="$((32 * 1024 * 1024 / 8))" # 32 MiB
 if [ "$((8 * $SLURM_NPROCS * $NMEM))" -gt "$SZ" ]; then
     NMEM="$(($SZ / 8 / $SLURM_NPROCS))"
 fi
@@ -30,7 +31,7 @@ fi
 NSEC="$(($SZ / 8 / $SLURM_NPROCS / $NMEM))"
 
 echo "Sort started at $(date -Ins)"
-mpirun ./bin/sn-mpi "$NMEM" "$NSEC" "${FILES[@]}"
+mpirun ./bin/sn-mpi "$NMEM" "$NSEC" "$NMSG" "${FILES[@]}"
 echo "Sort completed at $(date -Ins)"
 
 echo "All data has been sorted and written to" "${FILES[@]}"

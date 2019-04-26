@@ -5,14 +5,10 @@
 #include <algorithm>
 #include <vector>
 #include <cstdint>
+#include <limits>
 #include "quick_sort.hpp"
 
 #define IS_POW_2(x) ((x) && !((x) & ((x) - 1)))
-
-#ifndef X_MPI_MSG
-// Reduce this to 2KiB can avoid deadlock
-#define X_MPI_MSG static_cast<size_t>(32ull * 1024ull) // 32KiB
-#endif
 
 #define ASC true
 #define DESC false
@@ -31,7 +27,9 @@ public:
 
     bitonic_remote(const bitonic_remote &) = delete;
     bitonic_remote(bitonic_remote &&other) noexcept
-        : My(other.My), NMach(other.NMach), NMem(other.NMem), NSec(other.NSec), _d(other._d), _recv(other._recv)
+        : My(other.My), NMach(other.NMach),
+          NMem(other.NMem), NSec(other.NSec), NMsg(other.NMsg),
+          _d(other._d), _recv(other._recv)
     {
         other._d = nullptr;
         other._recv = nullptr;
@@ -47,6 +45,7 @@ public:
         NMach = other.NMach;
         NMem = other.NMem;
         NSec = other.NSec;
+        NMsg = other.NMsg;
 
         delete _d;
         delete _recv;
@@ -69,15 +68,19 @@ public:
 
 protected:
 
-    virtual void send_mem(const T *d, size_t sz, size_t partner, tag_t tag) = 0;
-    virtual void recv_mem(T *d, size_t sz, size_t partner, tag_t tag) = 0;
+    virtual void exchange_mem(
+        size_t sz, size_t partner, tag_t tag,
+        const T *source, T *dest) = 0;
 
     virtual void load_sec(size_t sec, size_t offset, T *d, size_t sz) = 0;
     virtual void write_sec(size_t sec, size_t offset, const T *d, size_t sz) = 0;
 
-    bitonic_remote(size_t nmach, size_t nmem, size_t nsec)
-        : My(nmach), NMach(nmach), NMem(nmem), NSec(nsec), _d(new T[nmem]), _recv(new T[NMsg])
+    bitonic_remote(size_t nmach, size_t nmem, size_t nsec, size_t nmsg)
+        : My(nmach), NMach(nmach), NMem(nmem), NSec(nsec), NMsg(nmsg),
+          _d(new T[nmem]), _recv(new T[nmsg])
     {
+        if (nmem < 2)
+            throw std::runtime_error("NMem is too small");
         if (!IS_POW_2(nmach))
             throw std::runtime_error("NMach is not pow of 2");
         if (!IS_POW_2(nmem))
@@ -87,11 +90,11 @@ protected:
     }
 
     typedef bool dir_t;
-    static constexpr auto NMsg = X_MPI_MSG / sizeof(T);
     size_t My;
     size_t NMach;
     size_t NMem;
     size_t NSec;
+    size_t NMsg;
 
 private:
 
@@ -210,8 +213,7 @@ private:
             {
                 const auto mx = std::min(NMsg, static_cast<size_t>(_d + NMem - ptr));
                 const auto tg = base_tag | (ptr - _d) / NMsg;
-                send_mem(ptr, mx, partner, tg);
-                recv_mem(_recv, mx, partner, tg);
+                exchange_mem(mx, partner, tg, ptr, _recv);
                 for (size_t i = 0; i < mx; i++)
                     if (((dir == ASC) != (kind == ASC))
                         ? (_recv[i] < ptr[i])
