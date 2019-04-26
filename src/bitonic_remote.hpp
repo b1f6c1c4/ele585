@@ -113,11 +113,7 @@ private:
     void initial_sort_mem(size_t sec, dir_t dir)
     {
         load_sec(sec, 0, _d, NMem);
-        // TODO
-        // quick_sort(_d, _d + NMem, dir == DESC);
-        std::sort(_d, _d + NMem);
-        if (dir == DESC)
-            std::reverse(_d, _d + NMem);
+        quick_sort(_d, _d + NMem, dir == DESC);
         write_sec(sec, 0, _d, NMem);
     }
 

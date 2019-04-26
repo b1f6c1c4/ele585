@@ -7,6 +7,8 @@
 #include <algorithm>
 #include "sn_sort.hpp"
 
+// #define QUICK_SORT_TRACE
+
 #ifndef X_USE_SN
 #define X_USE_SN 16
 #endif
@@ -16,10 +18,10 @@
 #endif
 
 template <typename Iter>
-using Tl = const typename std::iterator_traits<Iter>::reference;
+using T = const typename std::iterator_traits<Iter>::value_type;
 
 template <typename Iter>
-Tl<Iter> quick_random_pivots(Iter first, Iter last)
+T<Iter> quick_random_pivots(Iter first, Iter last)
 {
     auto q = (last - first) / 2;
     Iter v[3] = {
@@ -42,6 +44,28 @@ std::pair<Iter, Iter> quick_partition(Iter first, Iter last, bool reversed)
     auto right = last;
     for (auto i = left; i <= right;)
     {
+#ifdef QUICK_SORT_TRACE
+        for (auto it = first; it <= last; ++it)
+        {
+            if (it == i)
+                std::cerr << "!";
+            if (it == left && it == right)
+                std::cerr << " <" << *it << ">";
+            else if (it == left)
+                std::cerr << " <" << *it;
+            else if (it == right)
+                std::cerr << " " << *it << ">";
+            else
+                std::cerr << " " << *it;
+        }
+        if (p < *i)
+            std::cerr << "GT";
+        else if (*i < p)
+            std::cerr << "LT";
+        else
+            std::cerr << "EQ";
+        std::cerr << std::endl;
+#endif
         if (reversed ? (p < *i) : (*i < p))
             std::iter_swap(left++, i++);
         else if (reversed ? (*i < p) : (p < *i))
@@ -57,9 +81,19 @@ void quick_sort(Iter begin, Iter end, bool reversed, size_t max_depth)
 {
     while (true)
     {
+#ifdef QUICK_SORT_TRACE
+        for (auto it = begin; it != end; ++it)
+            std::cerr << " " << *it;
+        std::cerr << std::endl;
+#endif
         if (end - begin <= X_USE_SN)
         {
             sn_sort(begin, end, reversed);
+#ifdef QUICK_SORT_TRACE
+            for (auto it = begin; it != end; ++it)
+                std::cerr << " " << *it;
+            std::cerr << std::endl;
+#endif
             return;
         }
 
@@ -67,9 +101,25 @@ void quick_sort(Iter begin, Iter end, bool reversed, size_t max_depth)
             break;
 
         decltype(auto) lr = quick_partition(begin, end - 1, reversed);
+#ifdef QUICK_SORT_TRACE
+        for (auto it = begin; it != end; ++it)
+            if (it == lr.first && it == lr.second)
+                std::cerr << " <" << *it << ">";
+            else if (it == lr.first)
+                std::cerr << " <" << *it;
+            else if (it == lr.second)
+                std::cerr << " " << *it << ">";
+            else
+                std::cerr << " " << *it;
+        std::cerr << std::endl;
+#endif
 
         auto dL = lr.first - begin;
-        auto dR = end - lr.second;
+        auto dR = end - lr.second - 1;
+
+#ifdef QUICK_SORT_TRACE
+        std::cerr << "dL=" << dL << " dR=" << dR << std::endl;
+#endif
 
         if (dL >= dR)
         {
