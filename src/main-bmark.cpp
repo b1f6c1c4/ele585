@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <climits>
 #include <mpi.h>
+#include <experimental/filesystem>
 #include "fast_random.hpp"
 #include "bitonic_mpi.hpp"
 #include "timed.hpp"
@@ -19,6 +20,8 @@
 #elif SIZE_MAX == ULLONG_MAX
 #define MPI_SIZE_T MPI_UNSIGNED_LONG_LONG
 #endif
+
+namespace fs = std::experimental::filesystem;
 
 int main(int argc, char *argv[])
 {
@@ -40,7 +43,10 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &nmach);
     MPI_Comm_rank(MPI_COMM_WORLD, &my);
 
-	decltype(auto) ftmp = std::string(argv[4]) + "/" + std::to_string(my);
+	fs::path ftmp = argv[4];
+	if (!fs::create_directories(ftmp))
+		throw std::runtime_error("Can't create directory");
+	ftmp /= std::to_string(my);
 
     std::cerr
         << "Mach #" << my << "/" << nmach
@@ -87,6 +93,9 @@ int main(int argc, char *argv[])
 		else
 			std::cerr << "The result is correct" << std::endl;
 	}
+
+	if (!fs::remove(ftmp))
+		std::cerr << "Warning: can't remove temp file " << ftmp << std::endl;
 
     MPI_Finalize();
 	return ret;

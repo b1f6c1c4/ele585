@@ -37,7 +37,7 @@ bin/sn-mpi: obj/src/main.o
 
 bin/sn-mpi-bmark: obj/src/main-bmark.o
 	@mkdir -p $(shell dirname "$@")
-	$(CXX) -o $@ $^
+	$(CXX) -o $@ $^ -lstdc++fs
 
 bin/sn-playground: obj/src/main-playground.o
 	@mkdir -p $(shell dirname "$@")
