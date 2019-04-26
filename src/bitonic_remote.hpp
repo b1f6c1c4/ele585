@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <cmath>
 #include <algorithm>
 #include <vector>
@@ -76,8 +77,12 @@ protected:
     bitonic_remote(size_t nmach, size_t nmem, size_t nsec)
         : My(nmach), NMach(nmach), NMem(nmem), NSec(nsec), _d(new T[nmem]), _recv(new T[NMsg])
     {
-        if (!IS_POW_2(nmach) || !IS_POW_2(nmem) || !IS_POW_2(nsec))
-            throw;
+        if (!IS_POW_2(nmach))
+            throw std::runtime_error("NMach is not pow of 2");
+        if (!IS_POW_2(nmem))
+            throw std::runtime_error("NMem is not pow of 2");
+        if (!IS_POW_2(nsec))
+            throw std::runtime_error("NSec is not pow of 2");
     }
 
     typedef bool dir_t;
