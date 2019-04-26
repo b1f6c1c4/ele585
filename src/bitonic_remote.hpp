@@ -10,7 +10,8 @@
 #define IS_POW_2(x) ((x) && !((x) & ((x) - 1)))
 
 #ifndef X_MPI_MSG
-#define X_MPI_MSG static_cast<size_t>(32ull * 1024ull * 1024ull) // 32MiB
+// Reduce this to 2KiB can avoid deadlock
+#define X_MPI_MSG static_cast<size_t>(32ull * 1024ull) // 32KiB
 #endif
 
 #define ASC true
@@ -203,12 +204,12 @@ private:
         const auto base_base_tag = tag << static_cast<int>(1 + std::log2(NSec));
         for (size_t sec = 0; sec < NSec; sec++)
         {
-            const auto base_tag = base_base_tag << static_cast<int>(std::log2(NMsg)) | sec;
+            const auto base_tag = base_base_tag << static_cast<int>(1 + std::log2(NMem / NMsg)) | sec;
             load_sec(sec, 0, _d, NMem);
             for (auto ptr = _d; ptr < _d + NMem; ptr += NMsg)
             {
                 const auto mx = std::min(NMsg, static_cast<size_t>(_d + NMem - ptr));
-                const auto tg = base_tag | (ptr - _d) / NMem;
+                const auto tg = base_tag | (ptr - _d) / NMsg;
                 send_mem(ptr, mx, partner, tg);
                 recv_mem(_recv, mx, partner, tg);
                 for (size_t i = 0; i < mx; i++)

@@ -5,7 +5,7 @@
 #include <mpi.h>
 #include "bitonic_remote.hpp"
 
-// #define BITONIC_MPI_DEBUG
+#define BITONIC_MPI_DEBUG
 // #define BITONIC_MPI_TRACE
 
 template <typename T>
@@ -31,7 +31,7 @@ protected:
 #ifdef BITONIC_MPI_DEBUG
         std::cout
             << bitonic_remote<T>::My << " -> " << partner
-            << " (#" << std::hex << tag << ") ";
+            << " (#" << std::hex << tag << std::dec << ") ";
 #ifdef BITONIC_MPI_TRACE
         for (size_t i = 0; i < sz; i++)
             std::cout << " " << d[i];
@@ -55,7 +55,7 @@ protected:
 #ifdef BITONIC_MPI_DEBUG
         std::cout
             << bitonic_remote<T>::My << " <- " << partner
-            << " (#" << std::hex << tag << ") ";
+            << " (#" << std::hex << tag << std::dec << ") ";
 #ifdef BITONIC_MPI_TRACE
         for (size_t i = 0; i < sz; i++)
             std::cout << " " << d[i];
@@ -86,7 +86,7 @@ protected:
             << "#" << sec << "[" << offset << "] ";
 #ifdef BITONIC_MPI_TRACE
         for (size_t i = 0; i < sz; i++)
-            std::cout << " " << std::hex << d[i];
+            std::cout << " " << d[i];
         std::cout << std::endl;
 #else
         std::cout << sz << std::endl;

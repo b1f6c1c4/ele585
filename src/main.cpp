@@ -43,7 +43,9 @@ int main(int argc, char *argv[])
 
     std::cerr
         << "Mach #" << my << "/" << nmach
-        << " operating on " << argv[fid] << std::endl;
+        << " operating on " << argv[fid]
+        << " with NMem=" << nmem
+        << " NSec=" << nsec << std::endl;
 
     bitonic_remote_mpi<size_t> sorter(nmach, nmem, nsec, argv[fid]);
     sorter.execute(my);

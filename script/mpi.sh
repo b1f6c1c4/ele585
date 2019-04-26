@@ -7,38 +7,30 @@
 #SBATCH --mem-per-cpu=160
 #SBATCH --time=1:00:00
 
-set -euxo pipefail
+set -euo pipefail
 
 F0=/tigress/jinzheng/input-short
-F1=/tigress/jinzheng/output-short
-FTMP=/scratch/jinzheng/ele585-mpi
 
+FILES=()
+for I in $(seq 0 $(($SLURM_NPROCS-1))); do
+    FILES+=("$F0-$I")
+done
+
+echo "All data should have been stored on" "${FILES[@]}"
+
+# Number of bytes, total input
 SZ="$(stat --printf="%s" "$F0")"
 
-BS=8192
-COUNT="$(($SZ / $BS))"
-SKIP="$(($COUNT / $SLURM_NPROCS))"
-
+# Number of size_t entries, single shard
 NMEM="$((128 * 1024 * 1024 / 8))" # 128 MiB
-NSEC="$(($BS * $SKIP / 8 / $NMEM))"
-
-if [ "$NSEC" -lt "1" ]; then
-    NMEM="$(($BS * $SKIP / 8))"
-    NSEC=1
+if [ "$((8 * $SLURM_NPROCS * $NMEM))" -gt "$SZ" ]; then
+    NMEM="$(($SZ / 8 / $SLURM_NPROCS))"
 fi
+# Number of sections, single shard
+NSEC="$(($SZ / 8 / $SLURM_NPROCS / $NMEM))"
 
-DEBUG=
-# DEBUG="echo "
+echo "Sort started at $(date -Ins)"
+mpirun ./bin/sn-mpi "$NMEM" "$NSEC" "${FILES[@]}"
+echo "Sort completed at $(date -Ins)"
 
-rm -f "$F1"
-
-F0Q="$(printf '%q' "$F0")"
-F1Q="$(printf '%q' "$F1")"
-FTMPDQ="$(printf '%q' "$FTMP/")"
-FTMPQ="$(printf '"$(printf '"'"'%%s/%%s'"'"' %q \$SLURM_PROCID.dat)"' "$FTMP")"
-SHIFTQ="\$((\$SLURM_PROCID * $SKIP))"
-
-srun bash -c "$DEBUG mkdir -p $FTMPDQ && $DEBUG rm -f $FTMPQ"
-srun bash -c "$DEBUG dd if=$F0Q of=$FTMPQ skip=$SHIFTQ count=$SKIP bs=$BS"
-srun bash -c "$DEBUG mpiexec bin/sn-mpi $NMEM $NSEC $FTMPQ"
-srun bash -c "$DEBUG dd if=$FTMPQ of=$F1Q seek=$SHIFTQ count=$SKIP bs=$BS"
+echo "All data has been sorted and written to" "${FILES[@]}"
