@@ -2,17 +2,19 @@
 
 set -euo pipefail
 
-make -j10
+make -j10 bin/sn-playground
 
-./bin/sn-mpi >./bin/log
+mkdir -p data
+
+./bin/sn-playground >./data/log
 
 ARGS=()
 for I in $(seq 0 3); do
-    grep "^$I " ./bin/log | awk '{printf "%-32s\n", $0}' > "./bin/log-$I"
-    ARGS+=("./bin/log-$I")
+    grep "^$I " ./data/log | awk '{printf "%-32s\n", $0}' > "./data/log-$I"
+    ARGS+=("./data/log-$I")
 done
 
 paste "${ARGS[@]}"
-grep '^Final' ./bin/log
+grep '^Final' ./data/log
 
-rm -rf ./bin/log-*
+rm -rf ./data/log-*

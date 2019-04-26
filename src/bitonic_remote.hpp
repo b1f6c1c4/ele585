@@ -94,9 +94,7 @@ private:
 
     void initial_sort_mem(dir_t dir)
     {
-        quick_sort(_d, _d + NMem);
-        if (dir == DESC) // TODO
-            std::reverse(_d, _d + NMem);
+        quick_sort(_d, _d + NMem, dir == DESC);
     }
 
     // Requires:
@@ -197,10 +195,10 @@ private:
     //     F[my]     [0, NSec) is vdir - ordered
     void bitonic_cross_pair(dir_t kind, size_t partner, dir_t dir, tag_t tag)
     {
-        const auto base_base_tag = tag << static_cast<int>(1 + std::log2(NMsg));
+        const auto base_base_tag = tag << static_cast<int>(1 + std::log2(NSec));
         for (size_t sec = 0; sec < NSec; sec++)
         {
-            const auto base_tag = base_base_tag << static_cast<int>(std::log2(NSec)) | sec;
+            const auto base_tag = base_base_tag << static_cast<int>(std::log2(NMsg)) | sec;
             load_sec(sec, 0, _d, NMem);
             for (auto ptr = _d; ptr < _d + NMem; ptr += NMsg)
             {
@@ -208,7 +206,7 @@ private:
                 const auto tg = base_tag | (ptr - _d) / NMem;
                 send_mem(ptr, mx, partner, tg);
                 recv_mem(_recv, mx, partner, tg);
-                for (size_t i = 0; i < NMem - (ptr - _d); i++)
+                for (size_t i = 0; i < mx; i++)
                     if (((dir == ASC) != (kind == ASC))
                         ? (_recv[i] < ptr[i])
                         : (ptr[i] < _recv[i]))

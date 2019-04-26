@@ -18,7 +18,7 @@ public:
     {
         _count = 0;
         std::cout << std::endl
-            << "template <typename Iter>" << std::endl
+            << "template <typename Iter, bool R>" << std::endl
             << "void sn_sort_" << sz << "(Iter d)" << std::endl
             << "{";
         sorting_network_generator::sort(sz);
@@ -73,16 +73,16 @@ int main(int argc, char *argv[])
 
     std::cout << R"(#include <utility>
 
-#define X(l, r) if (d[r] < d[l]) std::swap(d[l], d[r])
+#define X(l, r) if (R ? (d[l] < d[r]) : (d[r] < d[l])) std::swap(d[l], d[r])
 )";
 
     for (auto sz = 2; sz <= max; sz++)
         gen.generate(sz);
 
     std::cout << std::endl;
-    std::cout << "template <typename Iter>" << std::endl;
-    std::cout << "void sn_sort(Iter first, Iter last)";
     std::cout << R"(
+template <typename Iter>
+void sn_sort(Iter first, Iter last, bool reversed = false)
 {
     if (last <= first)
         return;
@@ -95,7 +95,13 @@ int main(int argc, char *argv[])
 )";
 
     for (auto sz = 2; sz <= max; sz++)
-        std::cout << "        case " << sz << ": sn_sort_" << sz << "(first); break;" << std::endl;
+        std::cout
+            << "        case " << sz << ":" << std::endl
+            << "            if (reversed)" << std::endl
+            << "                sn_sort_" << sz << "<Iter, true>(first);" << std::endl
+            << "            else" << std::endl
+            << "                sn_sort_" << sz << "<Iter, false>(first);" << std::endl
+            << "            break;" << std::endl;
 
     std::cout << R"(
         default:

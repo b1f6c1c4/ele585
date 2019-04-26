@@ -106,7 +106,7 @@ private:
                 std::lock_guard<std::mutex> l{_mu0};
                 std::cout
                     << bitonic_remote<T>::My << " -> " << partner
-                    << "(#" << std::hex << tag << "):";
+                    << " (#" << std::hex << tag << "):";
                 for (size_t i = 0; i < sz; i++)
                     std::cout << " " << d[i];
                 std::cout << std::endl;
@@ -123,7 +123,7 @@ private:
                 std::lock_guard<std::mutex> l{_mu0};
                 std::cout
                     << bitonic_remote<T>::My << " <- " << partner
-                    << "(#" << std::hex << tag << "):";
+                    << " (#" << std::hex << tag << "):";
                 for (size_t i = 0; i < sz; i++)
                     std::cout << " " << d[i];
                 std::cout << std::endl;

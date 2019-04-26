@@ -1,7 +1,7 @@
 DEPFLAGS=-MT $@ -MMD -MP -MF $(patsubst %.o,%.Td,$@)
 CXX=mpic++ -std=c++17 -O3 -Wall -Werror -Wextra $(DEPFLAGS)
 POSTCOMPILE=@mv -f $(patsubst %.o,%.Td,$@) $(patsubst %.o,%.d,$@) && touch $@
-SRCS=gen/generator.cpp gen/main.cpp src/main.cpp
+SRCS=gen/generator.cpp gen/main.cpp src/main.cpp src/main-playground.cpp
 
 all: bin/sn-gen bin/sn-mpi
 
@@ -32,5 +32,9 @@ src/sn_sort.hpp: bin/sn-gen
 	$< 32 >$@
 
 bin/sn-mpi: obj/src/main.o
+	@mkdir -p $(shell dirname "$@")
+	$(CXX) -o $@ $^
+
+bin/sn-playground: obj/src/main-playground.o
 	@mkdir -p $(shell dirname "$@")
 	$(CXX) -o $@ $^

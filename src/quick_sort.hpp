@@ -34,7 +34,7 @@ Tl<Iter> quick_random_pivots(Iter first, Iter last)
 }
 
 template <typename Iter>
-std::pair<Iter, Iter> quick_partition(Iter first, Iter last)
+std::pair<Iter, Iter> quick_partition(Iter first, Iter last, bool reversed)
 {
     decltype(auto) p = quick_random_pivots(first, last);
 
@@ -42,9 +42,9 @@ std::pair<Iter, Iter> quick_partition(Iter first, Iter last)
     auto right = last;
     for (auto i = left; i <= right;)
     {
-        if (*i < p)
+        if (reversed ? (p < *i) : (*i < p))
             std::iter_swap(left++, i++);
-        else if (p < *i)
+        else if (reversed ? (*i < p) : (p < *i))
             std::iter_swap(i, right--);
         else
             ++i;
@@ -53,20 +53,20 @@ std::pair<Iter, Iter> quick_partition(Iter first, Iter last)
 }
 
 template <typename Iter>
-void quick_sort(Iter begin, Iter end, size_t max_depth)
+void quick_sort(Iter begin, Iter end, bool reversed, size_t max_depth)
 {
     while (true)
     {
         if (end - begin <= X_USE_SN)
         {
-            sn_sort(begin, end);
+            sn_sort(begin, end, reversed);
             return;
         }
 
         if (!max_depth)
             break;
 
-        decltype(auto) lr = quick_partition(begin, end - 1);
+        decltype(auto) lr = quick_partition(begin, end - 1, reversed);
 
         auto dL = lr.first - begin;
         auto dR = end - lr.second;
@@ -90,7 +90,7 @@ void quick_sort(Iter begin, Iter end, size_t max_depth)
 }
 
 template <typename Iter>
-void quick_sort(Iter begin, Iter end)
+void quick_sort(Iter begin, Iter end, bool reversed = false)
 {
-    quick_sort(begin, end, std::log2(end - begin) * X_MAX_DEPTH_MULT);
+    quick_sort(begin, end, reversed, std::log2(end - begin) * X_MAX_DEPTH_MULT);
 }

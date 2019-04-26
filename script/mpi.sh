@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 #SBATCH --job-name=ele585
-#SBATCH --output=mpi.out
+#SBATCH --output=./data/mpi.out
 #
 #SBATCH --ntasks=4
 #SBATCH --mem-per-cpu=160
