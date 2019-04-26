@@ -3,13 +3,15 @@
 #SBATCH --job-name=ele585
 #SBATCH --output=./data/mpi.out
 #
-#SBATCH --ntasks=4
+#SBATCH --ntasks=16
 #SBATCH --mem-per-cpu=160
 #SBATCH --time=1:00:00
 
 set -euo pipefail
 
-F0=/tigress/jinzheng/input-short
+F0=/tigress/jinzheng/input
+
+./script/split-file.sh "$F0" "$SLURM_NPROCS"
 
 FILES=()
 for I in $(seq 0 $(($SLURM_NPROCS-1))); do

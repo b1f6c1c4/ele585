@@ -5,7 +5,7 @@
 #include <mpi.h>
 #include "bitonic_remote.hpp"
 
-#define BITONIC_MPI_DEBUG
+// #define BITONIC_MPI_DEBUG
 // #define BITONIC_MPI_TRACE
 
 template <typename T>

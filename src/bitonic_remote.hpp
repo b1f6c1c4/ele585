@@ -6,9 +6,16 @@
 #include <vector>
 #include <cstdint>
 #include <limits>
+#include "logger.hpp"
 #include "quick_sort.hpp"
 
+#define BITONIC_MPI_INFO
+
 #define IS_POW_2(x) ((x) && !((x) & ((x) - 1)))
+
+#ifdef BITONIC_MPI_INFO
+#define LOG(...) write_log(__VA_ARGS__)
+#endif
 
 #define ASC true
 #define DESC false
@@ -234,9 +241,11 @@ private:
         auto mask = static_cast<size_t>(1) << level;
         while (mask)
         {
+            LOG("Mach ", My, " merge fine level ", level);
             bitonic_cross_pair((My & mask) ? ASC : DESC, My ^ mask, dir, base_tag | level);
             level--, mask >>= 1;
         }
+        LOG("Mach ", My, " merge own file");
         bitonic_sort_secs(0, NSec, dir);
     }
 
@@ -247,10 +256,12 @@ private:
     {
         for (size_t p = 0; p < std::log2(NSec); p++)
         {
+            LOG("Mach ", My, " init level ", p);
             const auto nsec = static_cast<size_t>(1) << p;
             for (size_t i = 0; i < NSec; i += nsec)
                 bitonic_sort_secs(i, nsec, ((i / nsec) % 2 == 0) ? ASC : DESC);
         }
+        LOG("Mach ", My, " init level ", std::log2(NSec));
         bitonic_sort_secs(0, NSec, dir);
     }
 
@@ -265,6 +276,7 @@ private:
         {
             const auto dirx = ((My >> (p + 1)) % 2 == 0) ? ASC : DESC;
             const auto diry = (dirx != dir) ? DESC : ASC;
+            LOG("Mach ", My, " merge coarse level ", p);
             bitonic_sort_prefix(p, diry, base_tag | p);
         }
     }
