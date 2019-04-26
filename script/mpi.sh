@@ -11,7 +11,7 @@ set -euo pipefail
 #         using 16 processes within 1 hour,
 #         each with 8192MiB main buffer & 32MiB peer buffer:
 #
-#     sbatch -n 16 --mem 8500 -t 1:00:00 \
+#     sbatch -n 16 --mem-per-cpu 8500 -t 1:00:00 \
 #         script/mpi.sh 8192 32 /tigress/jinzheng/input-*
 #
 #     Note:
@@ -34,6 +34,7 @@ if [ "$#" -eq "$SLURM_NPROCS" ]; then
         fi
         XSZ="$SZ"
         FILES+=("$1")
+        echo "Found file partition of size $XSZ at $1"
         shift
     done
 elif [ "$#" -eq "1" ]; then
@@ -62,7 +63,7 @@ if [ "$((8 * $NMEM))" -gt "$XSZ" ]; then
     NMEM="$(($XSZ / 8))"
 fi
 # Number of sections, single shard
-NSEC="$(($XSZ / 8))"
+NSEC="$(($XSZ / 8 / $NMEM))"
 
 echo "Sort started at $(date -Ins)"
 /usr/bin/time --verbose mpirun ./bin/sn-mpi "$NMEM" "$NSEC" "$NMSG" "${FILES[@]}"

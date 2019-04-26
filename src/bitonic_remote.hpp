@@ -28,8 +28,10 @@ public:
 
     virtual ~bitonic_remote()
     {
-        delete _d;
-        delete _recv;
+        delete [] _d;
+        delete [] _recv;
+        _d = nullptr;
+        _recv = nullptr;
     }
 
     bitonic_remote(const bitonic_remote &) = delete;
@@ -54,8 +56,8 @@ public:
         NSec = other.NSec;
         NMsg = other.NMsg;
 
-        delete _d;
-        delete _recv;
+        delete [] _d;
+        delete [] _recv;
 
         _d = other._d;
         _recv = other._recv;

@@ -24,9 +24,9 @@ int main(int argc, char *argv[])
     if (argc < 5)
         return 3;
 
-    const size_t nmem = std::atoi(argv[1]);
-    const size_t nsec = std::atoi(argv[2]);
-    const size_t nmsg = std::atoi(argv[3]);
+    const size_t nmem = std::atoll(argv[1]);
+    const size_t nsec = std::atoll(argv[2]);
+    const size_t nmsg = std::atoll(argv[3]);
 
     int nmach, my;
     MPI_Comm_size(MPI_COMM_WORLD, &nmach);
