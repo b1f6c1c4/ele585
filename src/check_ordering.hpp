@@ -7,6 +7,8 @@
 #include <limits>
 #include <mpi.h>
 
+#define LOG(...) write_log(nmach, my, __VA_ARGS__)
+
 template <typename T>
 std::optional<std::reference_wrapper<const T>> check_ordering(const T *d, size_t sz)
 {
@@ -65,9 +67,11 @@ bool check_ordering(size_t nmach, size_t my, std::istream &f)
 	auto local_result = true;
 	bool global_result;
 
+	LOG("Checking level 0");
 	decltype(auto) res = check_ordering<T, Blk>(f);
 	local_result = !!res;
 
+	LOG("Local result: ", local_result ? "correct" : "incorrect");
 	MPI_Allreduce(
 			&local_result, &global_result, 1,
 			MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);
@@ -82,6 +86,7 @@ bool check_ordering(size_t nmach, size_t my, std::istream &f)
         const auto mask = static_cast<size_t>(1) << p;
 		const auto partner = my ^ mask;
 		const int tag = std::numeric_limits<int>::max() - p;
+		LOG("Checking level ", p + 1);
 		if ((my & mask) == 0)
 		{
 			buffer = res.value().second;
@@ -100,6 +105,7 @@ bool check_ordering(size_t nmach, size_t my, std::istream &f)
 		}
 	}
 
+	LOG("Local merge result: ", local_result ? "correct" : "incorrect");
 	MPI_Allreduce(
 			&local_result, &global_result, 1,
 			MPI_CXX_BOOL, MPI_LAND, MPI_COMM_WORLD);

@@ -89,7 +89,10 @@ public:
         bitonic_sort_merge(ASC, 0);
 #ifdef BITONIC_OPT_SINGLE
         if (NSec == 1)
+        {
+            LOG("Writeback started");
             write_sec(0, 0, _d, NMem);
+        }
 #endif
     }
 
@@ -279,11 +282,11 @@ private:
         auto mask = static_cast<size_t>(1) << level;
         while (mask)
         {
-            LOG("Level ", coarse + 1, ".", coarse - level);
+            LOG("Level b.", coarse, ".", coarse - level);
             bitonic_cross_pair((My & mask) ? ASC : DESC, My ^ mask, dir, base_tag | level);
             level--, mask >>= 1;
         }
-        LOG("Level ", coarse + 1, ".", coarse - level);
+        LOG("Level b.", coarse, ".", coarse - level);
         bitonic_sort_secs(0, NSec, dir);
     }
 
@@ -295,10 +298,10 @@ private:
         const size_t last = std::log2(NSec);
         for (size_t p = 0; p <= last; p++)
         {
-            LOG("Level 0.", p);
             const auto nsec = static_cast<size_t>(1) << p;
             for (size_t i = 0; i < NSec; i += nsec)
             {
+                LOG("Level a.", p, ".", i / nsec);
                 dir_t d;
                 if (p == last)
                     d = dir;

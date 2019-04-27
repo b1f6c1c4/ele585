@@ -64,22 +64,28 @@ int main(int argc, char *argv[])
 				throw std::runtime_error("Can't write file");
 		}
 	}
-	LOG("generation finished");
+	LOG("Generation finished");
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	LOG("sorting started");
+	LOG("Sorting started");
 
+	timed t{};
 	{
-		timed t{};
 		bitonic_remote_mpi<size_t> sorter(nmach, nmem, nsec, nmsg, ftmp);
 		sorter.execute(my);
+	}
+	{
 		const auto res = t.done();
-		LOG("Total time = ", res, "ns = ", res / 60e9, "min");
+		LOG("Local total time = ", res, "ns = ", res / 60e9, "min");
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	LOG("checking started");
+	{
+		const auto res = t.done();
+		LOG("Global total time = ", res, "ns = ", res / 60e9, "min");
+	}
 
+	LOG("Checking started");
 	auto ret = 0;
 	{
 		std::ifstream f(ftmp, std::ios_base::in | std::ios_base::binary);
@@ -87,11 +93,11 @@ int main(int argc, char *argv[])
 			throw std::runtime_error("Can't open file");
 		if (!check_ordering<size_t>(nmach, my, f))
 		{
-			LOG("The result is incorrect");
+			LOG("Global result: incorrect");
 			ret = 1;
 		}
 		else
-			LOG("The result is correct");
+			LOG("Global result: correct");
 	}
 
 	if (!fs::remove(ftmp))
