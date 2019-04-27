@@ -44,8 +44,7 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &my);
 
 	fs::path ftmp = argv[4];
-	if (!fs::create_directories(ftmp))
-		throw std::runtime_error("Can't create directory");
+	fs::create_directories(ftmp);
 	ftmp /= std::to_string(my);
 
     std::cerr
@@ -66,10 +65,14 @@ int main(int argc, char *argv[])
 				throw std::runtime_error("Can't write file");
 		}
 	}
-	std::cerr << "Generation finished" << std::endl;
+	std::cerr
+		<< "Mach #" << my << "/" << nmach
+		<< " generation finished" << std::endl;
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	std::cerr << "Sorting started" << std::endl;
+	std::cerr
+		<< "Mach #" << my << "/" << nmach
+		<< " sorting started" << std::endl;
 
 	{
 		timed t{};
@@ -78,7 +81,9 @@ int main(int argc, char *argv[])
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	std::cerr << "Checking started" << std::endl;
+	std::cerr
+		<< "Mach #" << my << "/" << nmach
+		<< " checking started" << std::endl;
 
 	auto ret = 0;
 	{
@@ -95,7 +100,9 @@ int main(int argc, char *argv[])
 	}
 
 	if (!fs::remove(ftmp))
-		std::cerr << "Warning: can't remove temp file " << ftmp << std::endl;
+		std::cerr
+			<< "Warning: mach #" << my << "/" << nmach
+			<< " can't remove temp file" << std::endl;
 
     MPI_Finalize();
 	return ret;
