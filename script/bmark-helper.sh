@@ -73,8 +73,8 @@ make -j8 ./bin/sn-mpi-bmark
 
 mkdir -p data
 
-EXTRA+=(--output "data/${N}G-${N}x$(($MEM/1024))G.log")
-EXTRA+=(--job-name "${N}/${N}x$(($MEM/1024))G")
+EXTRA+=(--output "data/${SZ0}G-${N}x$(($MEM/1024))G.log")
+EXTRA+=(--job-name "${SZ0}/${N}x$(($MEM/1024))G")
 EXTRA+=(--ntasks "$N")
 EXTRA+=(--cpus-per-task 1)
 EXTRA+=(--mem-per-cpu "$MEMORY")
@@ -84,4 +84,4 @@ sbatch \
     "${EXTRA[@]}" \
     ./script/bmark.sh "$MEM" "$MSG" "$DIR" "$SZ"
 
-echo "You may want to less +F data/${N}G-${N}x$(($MEM/1024))G.log"
+echo "You may want to less +F data/${SZ0}G-${N}x$(($MEM/1024))G.log"

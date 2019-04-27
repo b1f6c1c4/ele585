@@ -273,20 +273,25 @@ private:
     //     F[my][0, NSec) is  dir-ordered
     void bitonic_sort_init(dir_t dir)
     {
-        LOG("Mach ", My, " init level ", 0);
-        for (size_t i = 0; i < NSec; i++)
-            initial_sort_mem(i, (i % 2 == 0) ? ASC : DESC);
-        for (size_t p = 1; p < std::log2(NSec); p++)
+        const auto last = std::log2(NSec);
+        for (size_t p = 0; p <= last; p++)
         {
             LOG("Mach ", My, " init level ", p);
             const auto nsec = static_cast<size_t>(1) << p;
             for (size_t i = 0; i < NSec; i += nsec)
-                bitonic_sort_secs(i, nsec, ((i / nsec) % 2 == 0) ? ASC : DESC);
-        }
-        if (NSec > 1)
-        {
-            LOG("Mach ", My, " init level ", std::log2(NSec));
-            bitonic_sort_secs(0, NSec, dir);
+            {
+                dir_t d;
+                if (p == last)
+                    d = dir;
+                else if ((i / nsec) % 2)
+                    d = DESC;
+                else
+                    d = ASC;
+                if (p == 0)
+                    initial_sort_mem(i, d);
+                else
+                    bitonic_sort_secs(i, nsec, d);
+            }
         }
     }
 
