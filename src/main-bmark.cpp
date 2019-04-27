@@ -4,6 +4,7 @@
 #include <climits>
 #include <mpi.h>
 #include <experimental/filesystem>
+#include "logger.hpp"
 #include "fast_random.hpp"
 #include "bitonic_mpi.hpp"
 #include "timed.hpp"
@@ -42,16 +43,14 @@ int main(int argc, char *argv[])
     int nmach, my;
     MPI_Comm_size(MPI_COMM_WORLD, &nmach);
     MPI_Comm_rank(MPI_COMM_WORLD, &my);
+#define LOG(...) write_log(nmach, my, __VA_ARGS__)
 
 	fs::path ftmp = argv[4];
 	fs::create_directories(ftmp);
 	ftmp /= std::to_string(my);
 
-    std::cout
-        << "Mach #" << my << "/" << nmach
-        << " operating on " << ftmp
-        << " with NMem=" << nmem
-        << " NSec=" << nsec << std::endl;
+	LOG("NMem=", nmem, " NSec=", nsec, " NMsg=", nmsg);
+	LOG("operating on ", ftmp);
 
 	fast_random rnd(114514);
 	{
@@ -65,26 +64,21 @@ int main(int argc, char *argv[])
 				throw std::runtime_error("Can't write file");
 		}
 	}
-	std::cout
-		<< "Mach #" << my << "/" << nmach
-		<< " generation finished" << std::endl;
+	LOG("generation finished");
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	std::cout
-		<< "Mach #" << my << "/" << nmach
-		<< " sorting started" << std::endl;
+	LOG("sorting started");
 
 	{
 		timed t{};
 		bitonic_remote_mpi<size_t> sorter(nmach, nmem, nsec, nmsg, ftmp);
 		sorter.execute(my);
-		std::cout << "Total time = " << t.done() << std::endl;
+		const auto res = t.done();
+		LOG("Total time = ", res, "ns = ", res / 60e9, "min");
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	std::cout
-		<< "Mach #" << my << "/" << nmach
-		<< " checking started" << std::endl;
+	LOG("checking started");
 
 	auto ret = 0;
 	{
@@ -93,17 +87,15 @@ int main(int argc, char *argv[])
 			throw std::runtime_error("Can't open file");
 		if (!check_ordering<size_t>(nmach, my, f))
 		{
-			std::cout << "The result is incorrect" << std::endl;
+			LOG("The result is incorrect");
 			ret = 1;
 		}
 		else
-			std::cout << "The result is correct" << std::endl;
+			LOG("The result is correct");
 	}
 
 	if (!fs::remove(ftmp))
-		std::cout
-			<< "Warning: mach #" << my << "/" << nmach
-			<< " can't remove temp file" << std::endl;
+		LOG("Warning: can't remove temp file");
 
     MPI_Finalize();
 	return ret;

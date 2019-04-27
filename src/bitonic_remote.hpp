@@ -16,7 +16,7 @@
 #define IS_POW_2(x) ((x) && !((x) & ((x) - 1)))
 
 #ifdef BITONIC_MPI_INFO
-#define LOG(...) write_log("[", std::setfill('0'), std::setw(std::log10(NMach)+1), My, "] ", __VA_ARGS__)
+#define LOG(...) write_log(NMach, My, __VA_ARGS__)
 #endif
 
 #define ASC true
@@ -329,3 +329,7 @@ private:
         }
     }
 };
+
+#undef LOG
+#undef ASC
+#undef DESC
