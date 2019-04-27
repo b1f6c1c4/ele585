@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 
     if (argc != 5)
 	{
-		std::cerr
+		std::cout
 			<< "Usage: mpiexec -n <NMach> bin/sn-mpi-bmark \\" << std::endl
 			<< "    <NMem> <NSec> <NMsg> <tmpdir>" << std::endl;
         return 3;
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 	fs::create_directories(ftmp);
 	ftmp /= std::to_string(my);
 
-    std::cerr
+    std::cout
         << "Mach #" << my << "/" << nmach
         << " operating on " << ftmp
         << " with NMem=" << nmem
@@ -65,12 +65,12 @@ int main(int argc, char *argv[])
 				throw std::runtime_error("Can't write file");
 		}
 	}
-	std::cerr
+	std::cout
 		<< "Mach #" << my << "/" << nmach
 		<< " generation finished" << std::endl;
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	std::cerr
+	std::cout
 		<< "Mach #" << my << "/" << nmach
 		<< " sorting started" << std::endl;
 
@@ -78,10 +78,11 @@ int main(int argc, char *argv[])
 		timed t{};
 		bitonic_remote_mpi<size_t> sorter(nmach, nmem, nsec, nmsg, ftmp);
 		sorter.execute(my);
+		std::cout << "Total time = " << t.done() << std::endl;
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	std::cerr
+	std::cout
 		<< "Mach #" << my << "/" << nmach
 		<< " checking started" << std::endl;
 
@@ -92,15 +93,15 @@ int main(int argc, char *argv[])
 			throw std::runtime_error("Can't open file");
 		if (!check_ordering<size_t>(nmach, my, f))
 		{
-			std::cerr << "The result is incorrect" << std::endl;
+			std::cout << "The result is incorrect" << std::endl;
 			ret = 1;
 		}
 		else
-			std::cerr << "The result is correct" << std::endl;
+			std::cout << "The result is correct" << std::endl;
 	}
 
 	if (!fs::remove(ftmp))
-		std::cerr
+		std::cout
 			<< "Warning: mach #" << my << "/" << nmach
 			<< " can't remove temp file" << std::endl;
 

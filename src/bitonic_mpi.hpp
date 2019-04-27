@@ -69,12 +69,12 @@ protected:
         const auto seek = (bitonic_remote<T>::NMem * sec + offset) * sizeof(T);
         if (!_f.seekg(seek, _f.beg))
         {
-            std::cerr << "Can't seek file for read" << std::endl;
+            std::cout << "Can't seek file for read" << std::endl;
             throw std::runtime_error("Can't seek file for read");
         }
         if (!_f.read(reinterpret_cast<char *>(d), sizeof(T) * sz))
         {
-            std::cerr << "Can't read file" << std::endl;
+            std::cout << "Can't read file" << std::endl;
             throw std::runtime_error("Can't read file");
         }
 

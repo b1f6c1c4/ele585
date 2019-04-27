@@ -16,12 +16,12 @@ class timed final
         timed &operator=(const timed &) = delete;
         timed &operator=(timed &&) = delete;
 
-        inline ~timed()
+		uint64_t done()
         {
             auto stop = std::chrono::high_resolution_clock::now();
-            std::cerr << std::chrono::duration_cast<std::chrono::nanoseconds>(
+            return std::chrono::duration_cast<std::chrono::nanoseconds>(
                     stop - start
-                    ).count() << std::endl;
+                    ).count();
         }
 
     private:

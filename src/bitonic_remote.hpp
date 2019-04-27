@@ -6,15 +6,17 @@
 #include <vector>
 #include <cstdint>
 #include <limits>
+#include <iomanip>
 #include "logger.hpp"
 #include "quick_sort.hpp"
 
 #define BITONIC_MPI_INFO
+#define BITONIC_OPT_SINGLE
 
 #define IS_POW_2(x) ((x) && !((x) & ((x) - 1)))
 
 #ifdef BITONIC_MPI_INFO
-#define LOG(...) write_log(__VA_ARGS__)
+#define LOG(...) write_log("[", std::setfill('0'), std::setw(std::log10(NMach)+1), My, "] ", __VA_ARGS__)
 #endif
 
 #define ASC true
@@ -68,11 +70,27 @@ public:
         return *this;
     }
 
+#ifdef BITONIC_OPT_SINGLE
+#define LOAD(...) if (NSec > 1) load_sec(__VA_ARGS__)
+#define WRITE(...) if (NSec > 1) write_sec(__VA_ARGS__)
+#else
+#define LOAD(...) load_sec(__VA_ARGS__)
+#define WRITE(...) write_sec(__VA_ARGS__)
+#endif
+
     void execute(size_t my)
     {
         My = my;
+#ifdef BITONIC_OPT_SINGLE
+        if (NSec == 1)
+            load_sec(0, 0, _d, NMem);
+#endif
         bitonic_sort_init((My % 2) == 0 ? ASC : DESC);
         bitonic_sort_merge(ASC, 0);
+#ifdef BITONIC_OPT_SINGLE
+        if (NSec == 1)
+            write_sec(0, 0, _d, NMem);
+#endif
     }
 
 protected:
@@ -112,9 +130,9 @@ private:
 
     void initial_sort_mem(size_t sec, dir_t dir)
     {
-        load_sec(sec, 0, _d, NMem);
+        LOAD(sec, 0, _d, NMem);
         quick_sort(_d, _d + NMem, dir == DESC);
-        write_sec(sec, 0, _d, NMem);
+        WRITE(sec, 0, _d, NMem);
     }
 
     // Requires:
@@ -180,9 +198,9 @@ private:
         {
             if (nsec == 1)
             {
-                load_sec(bsec, 0, _d, NMem);
+                LOAD(bsec, 0, _d, NMem);
                 bitonic_sort_mem(dir);
-                write_sec(bsec, 0, _d, NMem);
+                WRITE(bsec, 0, _d, NMem);
                 return;
             }
 
@@ -193,17 +211,17 @@ private:
                 const auto dl = _d;
                 const auto dr = _d + half;
 
-                load_sec(lsec, 0, dl, half);
-                load_sec(rsec, 0, dr, half);
+                LOAD(lsec, 0, dl, half);
+                LOAD(rsec, 0, dr, half);
                 bitonic_mem_pair(dir);
-                write_sec(lsec, 0, dl, half);
-                write_sec(rsec, 0, dr, half);
+                WRITE(lsec, 0, dl, half);
+                WRITE(rsec, 0, dr, half);
 
-                load_sec(lsec, half, dl, half);
-                load_sec(rsec, half, dr, half);
+                LOAD(lsec, half, dl, half);
+                LOAD(rsec, half, dr, half);
                 bitonic_mem_pair(dir);
-                write_sec(lsec, half, dl, half);
-                write_sec(rsec, half, dr, half);
+                WRITE(lsec, half, dl, half);
+                WRITE(rsec, half, dr, half);
             }
 
             bitonic_sort_secs(bsec + nsec / 2, nsec / 2, dir);
@@ -234,7 +252,7 @@ private:
         for (size_t sec = 0; sec < NSec; sec++)
         {
             const auto base_tag = base_base_tag << static_cast<int>(1 + std::log2(NMem / NMsg)) | sec;
-            load_sec(sec, 0, _d, NMem);
+            LOAD(sec, 0, _d, NMem);
             for (auto ptr = _d; ptr < _d + NMem; ptr += NMsg)
             {
                 const auto mx = std::min(NMsg, static_cast<size_t>(_d + NMem - ptr));
@@ -246,7 +264,7 @@ private:
                         : (ptr[i] < _recv[i]))
                         ptr[i] = _recv[i];
             }
-            write_sec(sec, 0, _d, NMem);
+            WRITE(sec, 0, _d, NMem);
         }
     }
 
@@ -256,15 +274,16 @@ private:
     //     F[@level][0, NSec) is @dir-ordered all
     void bitonic_sort_prefix(size_t level, dir_t dir, tag_t tag)
     {
+        const auto coarse = level;
         const auto base_tag = tag << static_cast<int>(1 + std::log2(std::log2(NMach)));
         auto mask = static_cast<size_t>(1) << level;
         while (mask)
         {
-            LOG("Mach ", My, " merge fine level ", level);
+            LOG("Level ", coarse + 1, ".", coarse - level);
             bitonic_cross_pair((My & mask) ? ASC : DESC, My ^ mask, dir, base_tag | level);
             level--, mask >>= 1;
         }
-        LOG("Mach ", My, " merge own file");
+        LOG("Level ", coarse + 1, ".", coarse - level);
         bitonic_sort_secs(0, NSec, dir);
     }
 
@@ -273,10 +292,10 @@ private:
     //     F[my][0, NSec) is  dir-ordered
     void bitonic_sort_init(dir_t dir)
     {
-        const auto last = std::log2(NSec);
+        const size_t last = std::log2(NSec);
         for (size_t p = 0; p <= last; p++)
         {
-            LOG("Mach ", My, " init level ", p);
+            LOG("Level 0.", p);
             const auto nsec = static_cast<size_t>(1) << p;
             for (size_t i = 0; i < NSec; i += nsec)
             {
@@ -306,7 +325,6 @@ private:
         {
             const auto dirx = ((My >> (p + 1)) % 2 == 0) ? ASC : DESC;
             const auto diry = (dirx != dir) ? DESC : ASC;
-            LOG("Mach ", My, " merge coarse level ", p);
             bitonic_sort_prefix(p, diry, base_tag | p);
         }
     }
