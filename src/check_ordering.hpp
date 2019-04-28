@@ -10,19 +10,19 @@
 #define LOG(...) write_log(nmach, my, __VA_ARGS__)
 
 template <typename T>
-std::optional<std::reference_wrapper<const T>> check_ordering(const T *d, size_t sz)
+std::optional<std::pair<T, T>> check_ordering(const T *d, size_t sz)
 {
 	if (sz < 2)
-		return { d[sz - 1] };
+		return { std::make_pair(d[0], d[sz - 1]) };
 
-	std::reference_wrapper<const T> last = *d;
+	auto last = *d;
 	while (--sz)
 	{
-		if (*d < last)
+		if (*++d < last)
 			return {};
-		last = std::reference_wrapper<const T>{*d++};
+		last = *d;
 	}
-	return { last };
+	return { std::make_pair(d[0], last) };
 }
 
 template <typename T, size_t Blk = 8 * 1024>
@@ -50,7 +50,7 @@ std::optional<std::pair<T, T>> check_ordering(std::istream &f)
 		if (!res)
 			return {};
 
-		end = { res.value() };
+		end = { res.value().second };
 
 		fsz -= rd;
 	}
@@ -62,14 +62,10 @@ std::optional<std::pair<T, T>> check_ordering(std::istream &f)
 }
 
 template <typename T, size_t Blk = 8 * 1024>
-bool check_ordering(size_t nmach, size_t my, std::istream &f)
+bool check_ordering(size_t nmach, size_t my, const std::optional<std::pair<T, T>> &res)
 {
-	auto local_result = true;
+	auto local_result = !!res;
 	bool global_result;
-
-	LOG("Checking level 0");
-	decltype(auto) res = check_ordering<T, Blk>(f);
-	local_result = !!res;
 
 	LOG("Local result: ", local_result ? "correct" : "incorrect");
 	MPI_Allreduce(
@@ -112,3 +108,5 @@ bool check_ordering(size_t nmach, size_t my, std::istream &f)
 
 	return global_result;
 }
+
+#undef LOG

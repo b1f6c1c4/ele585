@@ -22,29 +22,6 @@
 #define MPI_SIZE_T MPI_UNSIGNED_LONG_LONG
 #endif
 
-template <typename T>
-class memory_stream : public std::istream
-{
-public:
-	memory_stream(const T *d, size_t sz)
-		: std::istream(&_b), _b(d, sz)
-	{
-		rdbuf(&_b);
-	}
-
-private:
-	struct buffer_t : public std::basic_streambuf<char>
-	{
-		buffer_t(const T *d, size_t sz)
-		{
-			auto ptr = const_cast<char *>(reinterpret_cast<const char *>(d));
-			setg(ptr, ptr, ptr + sz * sizeof(T));
-		}
-	};
-
-	buffer_t _b;
-};
-
 namespace fs = std::experimental::filesystem;
 
 int main(int argc, char *argv[])
@@ -127,38 +104,33 @@ int main(int argc, char *argv[])
 		LOG("Global total time = ", res, "ns = ", res / 60e9, "min");
 	}
 
-	delete [] buffer;
-	buffer = nullptr;
-
 	LOG("Checking started");
 	auto ret = 0;
-	if (nsec == 1)
+	if (nsec > 1)
 	{
-		memory_stream<size_t> f(buffer, nmem);
-		if (!check_ordering<size_t>(nmach, my, f))
-		{
-			LOG("Global result: incorrect");
-			ret = 1;
-		}
-		else
-			LOG("Global result: correct");
-	}
-	else
-	{
+		delete [] buffer;
+		buffer = nullptr;
 		std::ifstream f(ftmp, std::ios_base::in | std::ios_base::binary);
 		if (!f.is_open())
 			throw std::runtime_error("Can't open file");
-		if (!check_ordering<size_t>(nmach, my, f))
-		{
-			LOG("Global result: incorrect");
+		if (!check_ordering<size_t>(nmach, my, check_ordering<size_t>(f)))
 			ret = 1;
-		}
-		else
-			LOG("Global result: correct");
 	}
+	else
+	{
+		if (!check_ordering<size_t>(nmach, my, check_ordering(buffer, nmem)))
+			ret = 1;
+		delete [] buffer;
+		buffer = nullptr;
+	}
+	if (ret)
+		LOG("Global result: incorrect");
+	else
+		LOG("Global result: correct");
 
-	if (!fs::remove(ftmp))
-		LOG("Warning: can't remove temp file");
+	if (nsec > 1)
+		if (!fs::remove(ftmp))
+			LOG("Warning: can't remove temp file");
 
     MPI_Finalize();
 	return ret;
