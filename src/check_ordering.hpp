@@ -10,7 +10,7 @@
 #define LOG(...) write_log(nmach, my, __VA_ARGS__)
 
 template <typename T>
-std::optional<std::pair<T, T>> check_ordering(const T *d, size_t sz)
+std::optional<std::pair<T, T>> check_ordering(const T *d, size_t sz, bool reversed = false)
 {
 	if (sz < 2)
 		return { std::make_pair(d[0], d[sz - 1]) };
@@ -18,9 +18,10 @@ std::optional<std::pair<T, T>> check_ordering(const T *d, size_t sz)
 	auto last = *d;
 	while (--sz)
 	{
-		if (*++d < last)
+		auto the = *++d;
+		if (reversed ? (last < the) : (the < last))
 			return {};
-		last = *d;
+		last = the;
 	}
 	return { std::make_pair(d[0], last) };
 }

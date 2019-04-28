@@ -6,7 +6,9 @@
 #include <iterator>
 #include <algorithm>
 #include "sn_sort.hpp"
+#include "check_ordering.hpp"
 
+// #define QUICK_SORT_DEBUG
 // #define QUICK_SORT_TRACE
 
 #ifndef X_USE_SN
@@ -15,6 +17,20 @@
 
 #ifndef X_MAX_DEPTH_MULT
 #define X_MAX_DEPTH_MULT 4
+#endif
+
+#define LOG(msg, begin, end) \
+    do { \
+        std::cerr << msg; \
+        for (auto it = begin; it != end; ++it) \
+            std::cerr << " " << *it / 1e17; \
+        std::cerr << std::endl; \
+    } while (false)
+
+#ifdef QUICK_SORT_TRACE
+#define TLOG(...) LOG(__VA_ARGS__)
+#else
+#define TLOG(...)
 #endif
 
 template <typename Iter>
@@ -79,26 +95,36 @@ std::pair<Iter, Iter> quick_partition(Iter first, Iter last, bool reversed)
 template <typename Iter>
 void quick_sort(Iter begin, Iter end, bool reversed, size_t max_depth)
 {
-    while (true)
+    for (; ; max_depth--)
     {
-#ifdef QUICK_SORT_TRACE
-        for (auto it = begin; it != end; ++it)
-            std::cerr << " " << *it;
-        std::cerr << std::endl;
-#endif
+        TLOG(begin, end);
         if (end - begin <= X_USE_SN)
         {
             sn_sort(begin, end, reversed);
-#ifdef QUICK_SORT_TRACE
-            for (auto it = begin; it != end; ++it)
-                std::cerr << " " << *it;
-            std::cerr << std::endl;
+#ifdef QUICK_SORT_DEBUG
+            if (!check_ordering(begin, end - begin, reversed))
+            {
+                LOG("sn_sort", begin, end);
+                std::exit(66);
+            }
 #endif
+            TLOG(begin, end);
             return;
         }
 
         if (!max_depth)
-            break;
+        {
+            std::make_heap(begin, end);
+            std::sort_heap(begin, end);
+#ifdef QUICK_SORT_DEBUG
+            if (!check_ordering(begin, end - begin, reversed))
+            {
+                LOG("sort_heap", begin, end);
+                std::exit(66);
+            }
+#endif
+            return;
+        }
 
         decltype(auto) lr = quick_partition(begin, end - 1, reversed);
 #ifdef QUICK_SORT_TRACE
@@ -131,12 +157,7 @@ void quick_sort(Iter begin, Iter end, bool reversed, size_t max_depth)
             quick_sort(begin, lr.first, reversed, max_depth - 1);
             begin = lr.second + 1;
         }
-
-        max_depth--;
     }
-
-    std::make_heap(begin, end);
-    std::sort_heap(begin, end);
 }
 
 template <typename Iter>
@@ -144,3 +165,5 @@ void quick_sort(Iter begin, Iter end, bool reversed = false)
 {
     quick_sort(begin, end, reversed, std::log2(end - begin) * X_MAX_DEPTH_MULT);
 }
+
+#undef LOG
