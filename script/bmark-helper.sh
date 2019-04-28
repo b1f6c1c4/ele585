@@ -6,7 +6,7 @@ usage()
 {
     cat - <<EOF
 Usage:
-    ./script/bmark-helper
+    ./script/bmark-helper.sh
         [-t <time>]
         [-d <directory>]
         [-m <message size (MiB)>]
