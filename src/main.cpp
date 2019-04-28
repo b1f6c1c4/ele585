@@ -48,8 +48,13 @@ int main(int argc, char *argv[])
         << " with NMem=" << nmem
         << " NSec=" << nsec << std::endl;
 
-    bitonic_remote_mpi<size_t> sorter(nmach, nmem, nsec, nmsg, argv[fid]);
+    auto buffer = new size_t[nmem];
+
+    bitonic_remote_mpi<size_t> sorter(nmach, nmem, nsec, nmsg, argv[fid], buffer);
     sorter.execute(my);
+
+    delete [] buffer;
+    buffer = nullptr;
 
     MPI_Finalize();
 }

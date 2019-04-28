@@ -20,7 +20,7 @@ int main()
     // st.data[2] = { 1, 3, 2, 4, 7, 3, 8, 3 };
     // st.data[3] = { 3, 4, 2, 7, 4, 6, 9, 2 };
 
-    decltype(auto) bi = bitonic_remote_playground<size_t>(&st);
+    bitonic_remote_playground<size_t> bi(&st);
     bi.execute();
 
     for (size_t i = 0; i < st.nmach; i++)

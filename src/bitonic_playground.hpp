@@ -90,12 +90,50 @@ private:
         std::vector<std::vector<std::shared_ptr<Channel>>> *_queues;
     public:
         stub(size_t my, storage<T> *st, std::mutex &mu0, std::vector<std::vector<std::shared_ptr<Channel>>> *queues)
-            : bitonic_remote<T>(st->nmach, st->nmem, st->nsec, st->nmsg),
+            : bitonic_remote<T>(st->nmach, st->nmem, st->nsec, st->nmsg, new T[st->nmem]),
               _my(my), _mu0(mu0), _st(st), _queues(queues) { }
 
         void execute()
         {
+            if (_st->nsec == 1)
+            {
+                decltype(auto) d = _st->data[_my];
+                std::copy(d.begin(), d.end(), bitonic_remote<T>::_d);
+            }
             bitonic_remote<T>::execute(_my);
+            if (_st->nsec == 1)
+            {
+                decltype(auto) d = bitonic_remote<T>::_d;
+                std::copy(d, d + _st->nmem, _st->data[_my].begin());
+            }
+        }
+
+        stub(const stub &) = delete;
+        stub(stub &&other) noexcept
+            : bitonic_remote<T>(std::move(other)),
+              _my(other._my), _mu0(other._mu0), _st(other._st),
+              _queues(std::move(other._queues)) { }
+
+        stub &operator=(const stub &) = delete;
+        stub &operator=(stub &&other) noexcept
+        {
+            delete [] bitonic_remote<T>::_d;
+            bitonic_remote<T>::_d = nullptr;
+
+            bitonic_remote<T>::operator=(std::move(other));
+
+            _my = other._my;
+            _mu0 = other._mu0;
+            _st = other._st;
+            _queues = std::move(other._queues);
+
+            return *this;
+        }
+
+        ~stub()
+        {
+            delete [] bitonic_remote<T>::_d;
+            bitonic_remote<T>::_d = nullptr;
         }
 
     protected:

@@ -30,9 +30,7 @@ public:
 
     virtual ~bitonic_remote()
     {
-        delete [] _d;
         delete [] _recv;
-        _d = nullptr;
         _recv = nullptr;
     }
 
@@ -58,7 +56,6 @@ public:
         NSec = other.NSec;
         NMsg = other.NMsg;
 
-        delete [] _d;
         delete [] _recv;
 
         _d = other._d;
@@ -81,19 +78,8 @@ public:
     void execute(size_t my)
     {
         My = my;
-#ifdef BITONIC_OPT_SINGLE
-        if (NSec == 1)
-            load_sec(0, 0, _d, NMem);
-#endif
         bitonic_sort_init((My % 2) == 0 ? ASC : DESC);
         bitonic_sort_merge(ASC, 0);
-#ifdef BITONIC_OPT_SINGLE
-        if (NSec == 1)
-        {
-            LOG("Writeback started");
-            write_sec(0, 0, _d, NMem);
-        }
-#endif
     }
 
 protected:
@@ -105,9 +91,9 @@ protected:
     virtual void load_sec(size_t sec, size_t offset, T *d, size_t sz) = 0;
     virtual void write_sec(size_t sec, size_t offset, const T *d, size_t sz) = 0;
 
-    bitonic_remote(size_t nmach, size_t nmem, size_t nsec, size_t nmsg)
+    bitonic_remote(size_t nmach, size_t nmem, size_t nsec, size_t nmsg, T *d)
         : My(nmach), NMach(nmach), NMem(nmem), NSec(nsec), NMsg(nmsg),
-          _d(new T[nmem]), _recv(new T[nmsg])
+          _d(d), _recv(new T[nmsg])
     {
         if (nmem < 2)
             throw std::runtime_error("NMem is too small");
@@ -126,9 +112,10 @@ protected:
     size_t NSec;
     size_t NMsg;
 
+    T *_d;
+
 private:
 
-    T *_d;
     T *_recv;
 
     void initial_sort_mem(size_t sec, dir_t dir)

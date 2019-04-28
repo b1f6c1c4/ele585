@@ -15,8 +15,11 @@ private:
     typedef typename bitonic_remote<T>::tag_t tag_t;
 
 public:
-    bitonic_remote_mpi(size_t nmach, size_t nmem, size_t nsec, size_t nmsg, const std::string &fn)
-        : bitonic_remote<T>(nmach, nmem, nsec, nmsg),
+    bitonic_remote_mpi(size_t nmach, size_t nmem, size_t nmsg, T *d)
+        : bitonic_remote<T>(nmach, nmem, 1, nmsg, d), _f() { }
+
+    bitonic_remote_mpi(size_t nmach, size_t nmem, size_t nsec, size_t nmsg, const std::string &fn, T *d)
+        : bitonic_remote<T>(nmach, nmem, nsec, nmsg, d),
           _f(fn, std::ios::in | std::ios::out | std::ios::binary)
     {
         if (!_f.is_open())
