@@ -22,6 +22,12 @@
 #define MPI_SIZE_T MPI_UNSIGNED_LONG_LONG
 #endif
 
+#define SHOW_TIME(str, v) \
+	({ \
+		decltype(auto) res = v; \
+		LOG(str, " time = ", res, "ns = ", res / 60e9, "min"); \
+	})
+
 namespace fs = std::experimental::filesystem;
 
 int main(int argc, char *argv[])
@@ -91,18 +97,15 @@ int main(int argc, char *argv[])
 		LOG("In-memory sorting started");
 		bitonic_remote_mpi<size_t> sorter(nmach, nmem, nmsg, buffer);
 		sorter.execute(my);
+		SHOW_TIME("Local computation", sorter._comp());
+		SHOW_TIME("Local communication", sorter._comm());
+		SHOW_TIME("Local disk access", sorter._disk());
 	}
 
-	{
-		const auto res = t.done();
-		LOG("Local total time = ", res, "ns = ", res / 60e9, "min");
-	}
+	SHOW_TIME("Local total", t());
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	{
-		const auto res = t.done();
-		LOG("Global total time = ", res, "ns = ", res / 60e9, "min");
-	}
+	SHOW_TIME("Global total", t());
 
 	LOG("Checking started");
 	auto ret = 0;

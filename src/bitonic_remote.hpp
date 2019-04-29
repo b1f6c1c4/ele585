@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <limits>
 #include <iomanip>
+#include "timed.hpp"
 #include "logger.hpp"
 #include "quick_sort.hpp"
 
@@ -27,6 +28,10 @@ class bitonic_remote
 {
 public:
     typedef int tag_t;
+
+    aggregated _disk;
+    aggregated _comp;
+    aggregated _comm;
 
     virtual ~bitonic_remote()
     {
@@ -67,12 +72,14 @@ public:
         return *this;
     }
 
+#define TIMED(x, ...) ({ decltype(auto) g = x.fork(); __VA_ARGS__; })
+
 #ifdef BITONIC_OPT_SINGLE
-#define LOAD(...) if (NSec > 1) load_sec(__VA_ARGS__)
-#define WRITE(...) if (NSec > 1) write_sec(__VA_ARGS__)
+#define LOAD(...) if (NSec > 1) TIMED(_disk, load_sec(__VA_ARGS__))
+#define WRITE(...) if (NSec > 1) TIMED(_disk, write_sec(__VA_ARGS__))
 #else
-#define LOAD(...) load_sec(__VA_ARGS__)
-#define WRITE(...) write_sec(__VA_ARGS__)
+#define LOAD(...) TIMED(_disk, load_sec(__VA_ARGS__))
+#define WRITE(...) TIMED(_disk, write_sec(__VA_ARGS__))
 #endif
 
     void execute(size_t my)
@@ -121,7 +128,7 @@ private:
     void initial_sort_mem(size_t sec, dir_t dir)
     {
         LOAD(sec, 0, _d, NMem);
-        quick_sort(_d, _d + NMem, dir == DESC);
+        TIMED(_comp, quick_sort(_d, _d + NMem, dir == DESC));
         WRITE(sec, 0, _d, NMem);
     }
 
@@ -158,6 +165,7 @@ private:
     //     MEM[0, 1)   is  dir-ordered
     void bitonic_sort_mem(dir_t dir)
     {
+        decltype(auto) g = _comp.fork();
         bitonic_sort_mem(_d, NMem, dir);
     }
 
@@ -170,6 +178,7 @@ private:
     //     [NMem / 2, NMem) is vdir - ordered
     void bitonic_mem_pair(dir_t dir)
     {
+        decltype(auto) g = _comp.fork();
         const size_t half = NMem / 2;
         for (size_t i = 0; i < half; i++)
             if (dir == ASC ? (_d[i + half] < _d[i]) : (_d[i] < _d[i + half]))
@@ -247,12 +256,15 @@ private:
             {
                 const auto mx = std::min(NMsg, static_cast<size_t>(_d + NMem - ptr));
                 const auto tg = base_tag | (ptr - _d) / NMsg;
-                exchange_mem(mx, partner, tg, ptr, _recv);
-                for (size_t i = 0; i < mx; i++)
-                    if (((dir == ASC) != (kind == ASC))
-                        ? (_recv[i] < ptr[i])
-                        : (ptr[i] < _recv[i]))
-                        ptr[i] = _recv[i];
+                TIMED(_comm, exchange_mem(mx, partner, tg, ptr, _recv));
+                {
+                    decltype(auto) g = _comp.fork();
+                    for (size_t i = 0; i < mx; i++)
+                        if (((dir == ASC) != (kind == ASC))
+                                ? (_recv[i] < ptr[i])
+                                : (ptr[i] < _recv[i]))
+                            ptr[i] = _recv[i];
+                }
             }
             WRITE(sec, 0, _d, NMem);
         }
