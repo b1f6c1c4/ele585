@@ -21,6 +21,7 @@ struct storage
 template <typename T>
 class bitonic_remote_playground
 {
+    typedef bitonic_remote<T, 3, 3> bitonic;
     class Channel;
     class stub;
 
@@ -49,7 +50,7 @@ public:
 private:
     class Channel
     {
-        typedef typename bitonic_remote<T>::tag_t tag_t;
+        typedef typename bitonic::tag_t tag_t;
 
         std::mutex _mu;
         std::condition_variable _cv;
@@ -81,7 +82,7 @@ private:
     std::vector<stub> _stubs;
     std::vector<std::vector<std::shared_ptr<Channel>>> _queues;
 
-    class stub : protected bitonic_remote<T>
+    class stub : protected bitonic
     {
         size_t _my;
         std::mutex &_mu0;
@@ -89,35 +90,35 @@ private:
         std::vector<std::vector<std::shared_ptr<Channel>>> *_queues;
     public:
         stub(size_t my, storage<T> *st, std::mutex &mu0, std::vector<std::vector<std::shared_ptr<Channel>>> *queues)
-            : bitonic_remote<T>(st->nmach, st->nmem, st->nmsg, new T[st->nmem]),
+            : bitonic(st->nmach, st->nmem, st->nmsg, new T[st->nmem]),
               _my(my), _mu0(mu0), _st(st), _queues(queues) { }
 
         void execute()
         {
             {
                 decltype(auto) d = _st->data[_my];
-                std::copy(d.begin(), d.end(), bitonic_remote<T>::_d);
+                std::copy(d.begin(), d.end(), bitonic::_d);
             }
-            bitonic_remote<T>::execute(_my);
+            bitonic::execute(_my);
             {
-                decltype(auto) d = bitonic_remote<T>::_d;
+                decltype(auto) d = bitonic::_d;
                 std::copy(d, d + _st->nmem, _st->data[_my].begin());
             }
         }
 
         stub(const stub &) = delete;
         stub(stub &&other) noexcept
-            : bitonic_remote<T>(std::move(other)),
+            : bitonic(std::move(other)),
               _my(other._my), _mu0(other._mu0), _st(other._st),
               _queues(std::move(other._queues)) { }
 
         stub &operator=(const stub &) = delete;
         stub &operator=(stub &&other) noexcept
         {
-            delete [] bitonic_remote<T>::_d;
-            bitonic_remote<T>::_d = nullptr;
+            delete [] bitonic::_d;
+            bitonic::_d = nullptr;
 
-            bitonic_remote<T>::operator=(std::move(other));
+            bitonic::operator=(std::move(other));
 
             _my = other._my;
             _mu0 = other._mu0;
@@ -129,12 +130,12 @@ private:
 
         ~stub()
         {
-            delete [] bitonic_remote<T>::_d;
-            bitonic_remote<T>::_d = nullptr;
+            delete [] bitonic::_d;
+            bitonic::_d = nullptr;
         }
 
     protected:
-        typedef typename bitonic_remote<T>::tag_t tag_t;
+        typedef typename bitonic::tag_t tag_t;
 
         virtual void exchange_mem(
             size_t sz, size_t partner, tag_t tag,
@@ -143,20 +144,20 @@ private:
             {
                 std::lock_guard<std::mutex> l{_mu0};
                 std::cout
-                    << bitonic_remote<T>::My << " -> " << partner
+                    << bitonic::My << " -> " << partner
                     << " (#" << std::hex << tag << std::dec << "):";
                 for (size_t i = 0; i < sz; i++)
                     std::cout << " " << source[i];
                 std::cout << std::endl;
             }
 
-            (*_queues)[bitonic_remote<T>::My][partner]->send(source, sz, tag);
-            (*_queues)[partner][bitonic_remote<T>::My]->recv(dest, sz, tag);
+            (*_queues)[bitonic::My][partner]->send(source, sz, tag);
+            (*_queues)[partner][bitonic::My]->recv(dest, sz, tag);
 
             {
                 std::lock_guard<std::mutex> l{_mu0};
                 std::cout
-                    << bitonic_remote<T>::My << " <- " << partner
+                    << bitonic::My << " <- " << partner
                     << " (#" << std::hex << tag << std::dec << "):";
                 for (size_t i = 0; i < sz; i++)
                     std::cout << " " << dest[i];

@@ -22,13 +22,7 @@
 #define ASC true
 #define DESC false
 
-// Maximum size (bytes) of MPI small package
-#define X_MPI_SMALL 2048
-// If single trip small package latency is T,
-// how many bytes can we send in T using huge package?
-#define X_MPI_LTBW_RATIO 1.7e-6 * 200e6
-
-template <typename T>
+template <typename T, size_t NDiv, size_t Lambda>
 class bitonic_remote
 {
 public:
@@ -47,8 +41,7 @@ public:
     bitonic_remote(bitonic_remote &&other) noexcept
         : My(other.My), NMach(other.NMach),
           NMem(other.NMem), NMsg(other.NMsg),
-          _d(other._d), _recv(other._recv),
-          NDIters(other.NDIters)
+          _d(other._d), _recv(other._recv)
     {
         other._d = nullptr;
         other._recv = nullptr;
@@ -64,7 +57,6 @@ public:
         NMach = other.NMach;
         NMem = other.NMem;
         NMsg = other.NMsg;
-        NDIters = other.NDIters;
 
         delete [] _recv;
 
@@ -94,9 +86,7 @@ protected:
 
     bitonic_remote(size_t nmach, size_t nmem, size_t nmsg, T *d)
         : My(nmach), NMach(nmach), NMem(nmem), NMsg(nmsg),
-          _d(d), _recv(new T[nmsg]),
-          NDIters(1 + std::log(NMem * sizeof(T))
-                  / std::log(X_MPI_LTBW_RATIO))
+          _d(d), _recv(new T[nmsg])
     {
         if (nmem < 2)
             throw std::runtime_error("NMem is too small");
@@ -117,8 +107,7 @@ protected:
 private:
 
     T *_recv;
-    constexpr static const size_t NDiv = X_MPI_SMALL / sizeof(T);
-    size_t NDIters;
+    constexpr static const size_t NMin = 2.0 * Lambda * NDiv / (NDiv - 1);
     T _fptx[NDiv];
     T _fprx[NDiv];
 
@@ -196,22 +185,62 @@ private:
         bitonic_sort_mem(_d, NMem, dir);
     }
 
+    // If kind == ASC:
     // Requires:
-    //     F[my]     [0, NSec) is  x-ordered
-    //     F[partner][0, NSec) is !x-ordered
+    //     F[my]     [0, NMem) ... F[partner][0, NMem) is v-ordered or ^-ordered
     // Ensures:
-    //     F[my]     [0, R.first) ... R.first[0, R.second)
-    //                    <=dir=>
-    //     F[partner][0, R.first) ... R.first[0, R.second)
+    //     F[my]     [0, R)    <=dir=> F[partner][0, R)
+    //     F[my]     [R, NMem) <=dir=> F[partner][R, NMem)
     std::pair<size_t, size_t> intersection_cross_pair(dir_t kind, size_t partner, dir_t dir, tag_t tag)
     {
-        // TODO
+#define Q(v) (((dir == ASC) != (kind == ASC)) \
+        ? (_fprx[v] < _fptx[v]) \
+        : (_fptx[v] < _fprx[v]))
+
+        size_t left = 0, right = NMem;
+        const auto base_tag = tag << static_cast<int>(1 + std::log(NMem) / std::log(NDiv));
+        for (size_t iter = 0; right - left > NMin; iter++)
+        {
+            auto delta = (right - left) / (NDiv - 1);
+            if (!delta)
+                delta = 1;
+            size_t ndiv;
+            for (ndiv = 0; ndiv < NDiv - 1; ndiv++)
+            {
+                if (left + delta * ndiv >= right)
+                    break;
+                _fptx[ndiv] = _d[left + delta * ndiv];
+            }
+            _fptx[NDiv - 1] = _d[right];
+            TIMED(_comm, exchange_mem(ndiv, partner, base_tag | iter, _fptx, _fprx));
+
+            const auto dl = Q(0);
+            const auto dr = Q(NDiv - 1);
+
+            if (dl && dr)
+                return std::make_pair(left, right);
+            if (!dl && !dr)
+                return std::make_pair(right, right);
+
+            size_t sleft = 0, sright = ndiv;
+            while (sleft < sright)
+            {
+                const auto v = (sleft + sright) / 2;
+                if (Q(v))
+                    sright = v;
+                else
+                    sleft = v + 1;
+            }
+            left = left + (sright - 1) * ndiv;
+            right = left + sright * ndiv;
+        }
+
+        return std::make_pair(left, right);
     }
 
     // If kind == ASC:
     // Requires:
-    //     F[my]      is  x-ordered
-    //     F[partner] is !x-ordered
+    //     F[my]      ... F[partner] is v-ordered or ^-ordered
     // Ensures:
     //     F[my]      is ^dir - ordered
     //                    <=dir=>
@@ -219,8 +248,7 @@ private:
     //
     // If kind == DESC:
     // Requires:
-    //     F[partner] is  x-ordered
-    //     F[my]      is !x-ordered
+    //     F[partner] ... F[my]      is v-ordered or ^-ordered
     // Ensures:
     //     F[partner] is ^dir - ordered
     //                    <=dir=>
@@ -228,18 +256,18 @@ private:
     void bitonic_cross_pair(dir_t kind, size_t partner, dir_t dir, tag_t tag)
     {
         const auto base_tag = tag << static_cast<int>(1 + std::log2(NMem / NMsg));
-        for (auto ptr = _d; ptr < _d + NMem; ptr += NMsg)
+        decltype(auto) res = intersection_cross_pair(kind, partner, dir, tag);
+        const auto left = res.first;
+        const auto right = res.second;
+        for (auto i = left; i < right; i += NMsg)
         {
-            const auto mx = std::min(NMsg, static_cast<size_t>(_d + NMem - ptr));
-            const auto tg = base_tag | (ptr - _d) / NMsg;
-            TIMED(_comm, exchange_mem(mx, partner, tg, ptr, _recv));
+            const auto mx = std::min(NMsg, NMem - i);
+            const auto tg = base_tag | i / NMsg;
+            TIMED(_comm, exchange_mem(mx, partner, tg, _d + i, _recv));
             {
                 decltype(auto) g = _comp.fork();
-                for (size_t i = 0; i < mx; i++)
-                    if (((dir == ASC) != (kind == ASC))
-                            ? (_recv[i] < ptr[i])
-                            : (ptr[i] < _recv[i]))
-                        ptr[i] = _recv[i];
+                for (size_t j = 0; j < mx; j++)
+                    _d[i + j] = _recv[i + j];
             }
         }
     }

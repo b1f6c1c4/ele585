@@ -51,7 +51,7 @@ while [ "$#" -gt "0" ]; do
     shift
 done
 
-if [ "${#POSITIONAL[@]}" -lt "2" ]; then
+if [ "${#POSITIONAL[@]}" -ne "2" ]; then
     usage
     exit 2
 fi
