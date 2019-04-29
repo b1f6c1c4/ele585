@@ -115,36 +115,67 @@ private:
     }
 
     // Requires:
-    //     MEM[d, d + sz / 2)      is  x-ordered
-    //     MEM[d + sz / 2, d + sz) is !x-ordered
+    //     MEM[d, d + sz)          is  v-ordered or ^-ordered
     // Ensures:
     //     MEM[d, d + sz)          is  dir-ordered
     void bitonic_sort_mem(T *d, size_t sz, dir_t dir)
     {
+#define Q(l, r) (dir == ASC ? (d[r] < d[l]) : (d[l] < d[r]))
+#define X(l, r) std::swap(d[l], d[r])
+
         while (sz >= 2)
         {
             if (sz == 2)
             {
-                if (dir == ASC ? (d[1] < d[0]) : (d[0] < d[1]))
-                    std::swap(d[0], d[1]);
+                if (Q(0, 1))
+                    X(0, 1);
                 return;
             }
 
-            const size_t half = sz / 2;
-            for (size_t i = 0; i < half; i++)
-                if (dir == ASC ? (d[i + half] < d[i]) : (d[i] < d[i + half]))
-                    std::swap(d[i], d[i + half]);
+            const auto half = sz / 2;
+            const auto dl = Q(0, half);
+            const auto dr = Q(half - 1, sz - 1);
+
+            if (dl && dr)
+            {
+                for (size_t i = 0; i < half; i++)
+                    X(i, i + half);
+            }
+            else if (dl != dr)
+            {
+                size_t left = 0, right = half;
+                while (left < right)
+                {
+                    size_t v = (left + right) / 2;
+                    if (dr == Q(v, v + half))
+                        right = v;
+                    else
+                        left = v + 1;
+                }
+
+                if (dr)
+                {
+                    for (auto i = right; i < half; i++)
+                        X(i, i + half);
+                }
+                else
+                {
+                    for (size_t i = 0; i < right; i++)
+                        X(i, i + half);
+                }
+            }
 
             bitonic_sort_mem(d + half, half, dir);
             sz = half;
         }
+#undef Q
+#undef X
     }
 
     // Requires:
-    //     MEM[0, NMem)        is  x-ordered
-    //     MEM[NMem / 2, NMem) is !x-ordered
+    //     MEM[0, NMem) is  v-ordered or ^-ordered
     // Ensures:
-    //     MEM[0, NMem)        is  dir-ordered
+    //     MEM[0, NMem) is  dir-ordered
     void bitonic_sort_mem(dir_t dir)
     {
         decltype(auto) g = _comp.fork();
