@@ -22,6 +22,12 @@
 #define ASC true
 #define DESC false
 
+// Maximum size (bytes) of MPI small package
+#define X_MPI_SMALL 2048
+// If single trip small package latency is T,
+// how many bytes can we send in T using huge package?
+#define X_MPI_LTBW_RATIO 1.7e-6 * 200e6
+
 template <typename T>
 class bitonic_remote
 {
@@ -41,7 +47,8 @@ public:
     bitonic_remote(bitonic_remote &&other) noexcept
         : My(other.My), NMach(other.NMach),
           NMem(other.NMem), NMsg(other.NMsg),
-          _d(other._d), _recv(other._recv)
+          _d(other._d), _recv(other._recv),
+          NDIters(other.NDIters)
     {
         other._d = nullptr;
         other._recv = nullptr;
@@ -57,6 +64,7 @@ public:
         NMach = other.NMach;
         NMem = other.NMem;
         NMsg = other.NMsg;
+        NDIters = other.NDIters;
 
         delete [] _recv;
 
@@ -86,7 +94,9 @@ protected:
 
     bitonic_remote(size_t nmach, size_t nmem, size_t nmsg, T *d)
         : My(nmach), NMach(nmach), NMem(nmem), NMsg(nmsg),
-          _d(d), _recv(new T[nmsg])
+          _d(d), _recv(new T[nmsg]),
+          NDIters(1 + std::log(NMem * sizeof(T))
+                  / std::log(X_MPI_LTBW_RATIO))
     {
         if (nmem < 2)
             throw std::runtime_error("NMem is too small");
@@ -107,6 +117,10 @@ protected:
 private:
 
     T *_recv;
+    constexpr static const size_t NDiv = X_MPI_SMALL / sizeof(T);
+    size_t NDIters;
+    T _fptx[NDiv];
+    T _fprx[NDiv];
 
     void initial_sort_mem(dir_t dir)
     {
@@ -180,6 +194,18 @@ private:
     {
         decltype(auto) g = _comp.fork();
         bitonic_sort_mem(_d, NMem, dir);
+    }
+
+    // Requires:
+    //     F[my]     [0, NSec) is  x-ordered
+    //     F[partner][0, NSec) is !x-ordered
+    // Ensures:
+    //     F[my]     [0, R.first) ... R.first[0, R.second)
+    //                    <=dir=>
+    //     F[partner][0, R.first) ... R.first[0, R.second)
+    std::pair<size_t, size_t> intersection_cross_pair(dir_t kind, size_t partner, dir_t dir, tag_t tag)
+    {
+        // TODO
     }
 
     // If kind == ASC:
