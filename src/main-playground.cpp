@@ -9,7 +9,6 @@ int main()
     auto st = storage<size_t>{};
     st.nmach = 1;
     st.nmem = 13;
-    st.nsec = 1;
     st.nmsg = 32;
 
     st.data.resize(st.nmach);
@@ -26,7 +25,7 @@ int main()
     for (size_t i = 0; i < st.nmach; i++)
     {
         std::cout << "Final[" << i << "]=";
-        for (size_t j = 0; j < st.nmem * st.nsec; j++)
+        for (size_t j = 0; j < st.nmem; j++)
             std::cout << " " << st.data[i][j];
         std::cout << std::endl;
     }

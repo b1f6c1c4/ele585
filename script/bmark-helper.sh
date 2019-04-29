@@ -8,17 +8,14 @@ usage()
 Usage:
     ./script/bmark-helper.sh
         [-t <time>]
-        [-d <directory>]
         [-m <message size (MiB)>]
         <total data (GiB)>
         <number of parallel tasks>
-        <memory per task (MiB)>
         [-- <...other sbatch parameters>]
 EOF
 }
 
 TIME=24:00:00
-DIR=/tmp/ele585-bmark
 MSG=32
 POSITIONAL=()
 EXTRA=()
@@ -30,11 +27,6 @@ while [ "$#" -gt "0" ]; do
             ;;
         -t|--time)
             TIME="$2"
-            shift
-            shift
-            ;;
-        -d|--directory)
-            DIR="$2"
             shift
             shift
             ;;
@@ -59,16 +51,15 @@ while [ "$#" -gt "0" ]; do
     shift
 done
 
-if [ "${#POSITIONAL[@]}" -lt "3" ]; then
+if [ "${#POSITIONAL[@]}" -lt "2" ]; then
     usage
     exit 2
 fi
 
 SZ0="${POSITIONAL[0]}"
 N="${POSITIONAL[1]}"
-MEM="${POSITIONAL[2]}"
+MEM="$((1024 * $SZ0 / $N))"
 MEMORY="$(($MEM + 512 + $MSG))"
-SZ="$((1024 * $SZ0 / $N))"
 
 make -j8 ./bin/sn-mpi-bmark
 
@@ -83,6 +74,6 @@ EXTRA+=(--time "$TIME")
 
 sbatch \
     "${EXTRA[@]}" \
-    ./script/bmark.sh "$MEM" "$MSG" "$DIR" "$SZ"
+    ./script/bmark.sh "$MEM" "$MSG"
 
 echo "You may want to less +F data/${SZ0}G-${N}x$(($MEM/1024))G.log"

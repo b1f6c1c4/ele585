@@ -13,7 +13,6 @@ struct storage
 {
     size_t nmach;
     size_t nmem;
-    size_t nsec;
     size_t nmsg;
 
     std::vector<std::vector<T>> data;
@@ -90,18 +89,16 @@ private:
         std::vector<std::vector<std::shared_ptr<Channel>>> *_queues;
     public:
         stub(size_t my, storage<T> *st, std::mutex &mu0, std::vector<std::vector<std::shared_ptr<Channel>>> *queues)
-            : bitonic_remote<T>(st->nmach, st->nmem, st->nsec, st->nmsg, new T[st->nmem]),
+            : bitonic_remote<T>(st->nmach, st->nmem, st->nmsg, new T[st->nmem]),
               _my(my), _mu0(mu0), _st(st), _queues(queues) { }
 
         void execute()
         {
-            if (_st->nsec == 1)
             {
                 decltype(auto) d = _st->data[_my];
                 std::copy(d.begin(), d.end(), bitonic_remote<T>::_d);
             }
             bitonic_remote<T>::execute(_my);
-            if (_st->nsec == 1)
             {
                 decltype(auto) d = bitonic_remote<T>::_d;
                 std::copy(d, d + _st->nmem, _st->data[_my].begin());
@@ -163,44 +160,6 @@ private:
                     << " (#" << std::hex << tag << std::dec << "):";
                 for (size_t i = 0; i < sz; i++)
                     std::cout << " " << dest[i];
-                std::cout << std::endl;
-            }
-        }
-
-        virtual void load_sec(size_t sec, size_t offset, T *d, size_t sz) override
-        {
-            auto base = _st->data[bitonic_remote<T>::My].begin()
-                + bitonic_remote<T>::NMem * sec + offset;
-            std::copy(base, base + sz, d);
-
-            {
-                std::lock_guard<std::mutex> l{_mu0};
-                std::cout
-                    << bitonic_remote<T>::My << " RD "
-                    << "#" << sec << "[" << offset << "]:";
-                for (size_t i = 0; i < sz; i++)
-                    std::cout << " " << d[i];
-                std::cout << std::endl;
-            }
-        }
-
-        virtual void write_sec(size_t sec, size_t offset, const T *d, size_t sz) override
-        {
-            auto base = _st->data[bitonic_remote<T>::My].begin()
-                + bitonic_remote<T>::NMem * sec + offset;
-            std::copy(d, d + sz, base);
-
-            {
-                std::lock_guard<std::mutex> l{_mu0};
-                std::cout
-                    << bitonic_remote<T>::My << " WR "
-                    << "#" << sec << "[" << offset << "]:";
-                for (size_t i = 0; i < sz; i++)
-                    std::cout << " " << d[i];
-                std::cout << std::endl;
-                std::cout << bitonic_remote<T>::My << " : ";
-                for (decltype(auto) v : _st->data[bitonic_remote<T>::My])
-                    std::cout << " " << v;
                 std::cout << std::endl;
             }
         }

@@ -21,36 +21,34 @@ int main(int argc, char *argv[])
 {
     MPI_Init(&argc, &argv);
 
-    if (argc < 5)
+    if (argc < 4)
         return 3;
 
     const size_t nmem = std::atoll(argv[1]);
-    const size_t nsec = std::atoll(argv[2]);
     const size_t nmsg = std::atoll(argv[3]);
 
     int nmach, my;
     MPI_Comm_size(MPI_COMM_WORLD, &nmach);
     MPI_Comm_rank(MPI_COMM_WORLD, &my);
 
-    if (argc != 5 && argc != nmach + 4)
+    if (argc != 4 && argc != nmach + 3)
     {
         std::cerr
             << nmach << " machines, "
-            << argc - 4 << " + 4 argc" << std::endl;
+            << argc - 3 << " + 3 argc" << std::endl;
         return 3;
     }
 
-    const auto fid = argc == 5 ? 4 : my + 4;
+    const auto fid = argc == 4 ? 3 : my + 3;
 
     std::cerr
         << "Mach #" << my << "/" << nmach
         << " operating on " << argv[fid]
-        << " with NMem=" << nmem
-        << " NSec=" << nsec << std::endl;
+        << " with NMem=" << nmem << std::endl;
 
     auto buffer = new size_t[nmem];
 
-    bitonic_remote_mpi<size_t> sorter(nmach, nmem, nsec, nmsg, argv[fid], buffer);
+    bitonic_remote_mpi<size_t> sorter(nmach, nmem, nmsg, argv[fid], buffer);
     sorter.execute(my);
 
     delete [] buffer;

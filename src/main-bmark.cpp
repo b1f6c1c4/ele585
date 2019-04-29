@@ -34,17 +34,16 @@ int main(int argc, char *argv[])
 {
     MPI_Init(&argc, &argv);
 
-    if (argc != 4 && argc != 5)
+    if (argc != 3)
 	{
 		std::cout
 			<< "Usage: mpiexec -n <NMach> bin/sn-mpi-bmark \\" << std::endl
-			<< "    <NMem> <NSec> <NMsg> [<tmpdir>]" << std::endl;
+			<< "    <NMem> <NMsg>" << std::endl;
         return 3;
 	}
 
     const size_t nmem = std::atoll(argv[1]);
-    const size_t nsec = std::atoll(argv[2]);
-    const size_t nmsg = std::atoll(argv[3]);
+    const size_t nmsg = std::atoll(argv[2]);
 
     int nmach, my;
     MPI_Comm_size(MPI_COMM_WORLD, &nmach);
@@ -52,54 +51,24 @@ int main(int argc, char *argv[])
 #define LOG(...) write_log(nmach, my, __VA_ARGS__)
 
 	fs::path ftmp;
-	if (nsec > 1)
-	{
-		ftmp = argv[4];
-		fs::create_directories(ftmp);
-		ftmp /= std::to_string(my);
-	}
 
-	LOG("NMem=", nmem, " NSec=", nsec, " NMsg=", nmsg);
-	if (nsec > 1)
-		LOG("operating on ", ftmp);
+	LOG("NMem=", nmem, " NMsg=", nmsg);
 
 	auto buffer = new size_t[nmem];
 
-	fast_random rnd(114514 + nmem + nsec + nmsg + nmach + my);
-	if (nsec > 1)
-	{
-		std::ofstream f(ftmp, std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
-		for (size_t i = 0; i < nsec; i++)
-		{
-			rnd(buffer, nmem);
-			if (!f.write(reinterpret_cast<const char *>(buffer), nmem * sizeof(size_t)))
-				throw std::runtime_error("Can't write file");
-		}
-		LOG("Generation finished");
-	}
-	else
-	{
-		rnd(buffer, nmem);
-		LOG("In-memory generation finished");
-	}
+	fast_random rnd(114514 + nmem + nmsg + nmach + my);
+	rnd(buffer, nmem);
+	LOG("In-memory generation finished");
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	timed t{};
-	if (nsec > 1)
-	{
-		LOG("Sorting started");
-		bitonic_remote_mpi<size_t> sorter(nmach, nmem, nsec, nmsg, ftmp, buffer);
-		sorter.execute(my);
-	}
-	else
 	{
 		LOG("In-memory sorting started");
 		bitonic_remote_mpi<size_t> sorter(nmach, nmem, nmsg, buffer);
 		sorter.execute(my);
 		SHOW_TIME("Local computation", sorter._comp());
 		SHOW_TIME("Local communication", sorter._comm());
-		SHOW_TIME("Local disk access", sorter._disk());
 	}
 
 	SHOW_TIME("Local total", t());
@@ -109,17 +78,6 @@ int main(int argc, char *argv[])
 
 	LOG("Checking started");
 	auto ret = 0;
-	if (nsec > 1)
-	{
-		delete [] buffer;
-		buffer = nullptr;
-		std::ifstream f(ftmp, std::ios_base::in | std::ios_base::binary);
-		if (!f.is_open())
-			throw std::runtime_error("Can't open file");
-		if (!check_ordering<size_t>(nmach, my, check_ordering<size_t>(f)))
-			ret = 1;
-	}
-	else
 	{
 		if (!check_ordering<size_t>(nmach, my, check_ordering(buffer, nmem)))
 			ret = 1;
@@ -130,10 +88,6 @@ int main(int argc, char *argv[])
 		LOG("Global result: incorrect");
 	else
 		LOG("Global result: correct");
-
-	if (nsec > 1)
-		if (!fs::remove(ftmp))
-			LOG("Warning: can't remove temp file");
 
     MPI_Finalize();
 	return ret;

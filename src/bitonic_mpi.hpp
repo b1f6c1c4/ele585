@@ -16,10 +16,10 @@ private:
 
 public:
     bitonic_remote_mpi(size_t nmach, size_t nmem, size_t nmsg, T *d)
-        : bitonic_remote<T>(nmach, nmem, 1, nmsg, d), _f() { }
+        : bitonic_remote<T>(nmach, nmem, nmsg, d), _f() { }
 
-    bitonic_remote_mpi(size_t nmach, size_t nmem, size_t nsec, size_t nmsg, const std::string &fn, T *d)
-        : bitonic_remote<T>(nmach, nmem, nsec, nmsg, d),
+    bitonic_remote_mpi(size_t nmach, size_t nmem, size_t nmsg, const std::string &fn, T *d)
+        : bitonic_remote<T>(nmach, nmem, nmsg, d),
           _f(fn, std::ios::in | std::ios::out | std::ios::binary)
     {
         if (!_f.is_open())
@@ -65,55 +65,5 @@ protected:
         std::cout << sz << std::endl;
 #endif
 #endif
-    }
-
-    virtual void load_sec(size_t sec, size_t offset, T *d, size_t sz) override
-    {
-        const auto seek = (bitonic_remote<T>::NMem * sec + offset) * sizeof(T);
-        if (!_f.seekg(seek, _f.beg))
-        {
-            std::cout << "Can't seek file for read" << std::endl;
-            throw std::runtime_error("Can't seek file for read");
-        }
-        if (!_f.read(reinterpret_cast<char *>(d), sizeof(T) * sz))
-        {
-            std::cout << "Can't read file" << std::endl;
-            throw std::runtime_error("Can't read file");
-        }
-
-#ifdef BITONIC_MPI_DEBUG
-        std::cout
-            << bitonic_remote<T>::My << " RD "
-            << "#" << sec << "[" << offset << "] ";
-#ifdef BITONIC_MPI_TRACE
-        for (size_t i = 0; i < sz; i++)
-            std::cout << " " << d[i];
-        std::cout << std::endl;
-#else
-        std::cout << sz << std::endl;
-#endif
-#endif
-    }
-
-    virtual void write_sec(size_t sec, size_t offset, const T *d, size_t sz) override
-    {
-#ifdef BITONIC_MPI_DEBUG
-        std::cout
-            << bitonic_remote<T>::My << " WR "
-            << "#" << sec << "[" << offset << "] ";
-#ifdef BITONIC_MPI_TRACE
-        for (size_t i = 0; i < sz; i++)
-            std::cout << " " << d[i];
-        std::cout << std::endl;
-#else
-        std::cout << sz << std::endl;
-#endif
-#endif
-
-        const auto seek = (bitonic_remote<T>::NMem * sec + offset) * sizeof(T);
-        if (!_f.seekg(seek, _f.beg))
-            throw std::runtime_error("Can't seek file for read");
-        if (!_f.write(reinterpret_cast<const char *>(d), sizeof(T) * sz))
-            throw std::runtime_error("Can't write file");
     }
 };
