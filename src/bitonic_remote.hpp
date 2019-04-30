@@ -255,7 +255,9 @@ private:
             auto old = left;
             left = old + delta * (sright - 1) + 1;
             if (sright != ndiv - 1)
-                right = old + delta * sright - 1;
+                right = old + delta * sright;
+            else
+                right--;
         }
 
         return std::make_pair(extl ? 0 : left, extr ? NMem : right);
