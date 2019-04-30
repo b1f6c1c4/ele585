@@ -8,18 +8,15 @@
 // #define BITONIC_MPI_DEBUG
 // #define BITONIC_MPI_TRACE
 
-// Maximum size (bytes) of MPI small package
-#define X_MPI_SMALL 2048
-// If single trip small package latency is T,
-// how many bytes can we send in T using huge package?
-#define X_LAMBDA 1.7e-6 * 200e6
+#define X_NDIV 256
+#define X_NMIN 2048
 
 template <typename T>
 class bitonic_remote_mpi
-    : public bitonic_remote<T, X_MPI_SMALL, static_cast<size_t>(X_LAMBDA)>
+    : public bitonic_remote<T, X_NDIV, X_NMIN>
 {
 private:
-    typedef bitonic_remote<T, X_MPI_SMALL, static_cast<size_t>(X_LAMBDA)> bitonic;
+    typedef bitonic_remote<T, X_NDIV, X_NMIN> bitonic;
     typedef typename bitonic::tag_t tag_t;
 
 public:

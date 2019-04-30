@@ -12,6 +12,8 @@
 #include "quick_sort.hpp"
 
 #define BITONIC_MPI_INFO
+// #define BITONIC_MPI_CROSS_DEBUG
+// #define BITONIC_MPI_CROSS_TRACE
 
 #define IS_POW_2(x) ((x) && !((x) & ((x) - 1)))
 
@@ -22,7 +24,7 @@
 #define ASC true
 #define DESC false
 
-template <typename T, size_t NDiv, size_t Lambda>
+template <typename T, size_t NDiv, size_t NMin>
 class bitonic_remote
 {
 public:
@@ -107,13 +109,18 @@ protected:
 private:
 
     T *_recv;
-    constexpr static const size_t NMin = 2.0 * Lambda * NDiv / (NDiv - 1);
     T _fptx[NDiv];
     T _fprx[NDiv];
 
     void initial_sort_mem(dir_t dir)
     {
         decltype(auto) g = _comp.fork();
+        /*
+        std::sort(_d, _d + NMem);
+        if (dir == DESC)
+            std::reverse(_d, _d + NMem);
+        return;
+        */
         quick_sort(_d, _d + NMem, dir == DESC);
     }
 
@@ -193,15 +200,16 @@ private:
     //     F[my]     [R, NMem) <=dir=> F[partner][R, NMem)
     std::pair<size_t, size_t> intersection_cross_pair(dir_t kind, size_t partner, dir_t dir, tag_t tag)
     {
-#define Q(v) (((dir == ASC) != (kind == ASC)) \
-        ? (_fprx[v] < _fptx[v]) \
-        : (_fptx[v] < _fprx[v]))
+#define Q0(p, q) (((dir == ASC) != (kind == ASC)) ? (q < p) : (p < q))
+#define Q(v) Q0(_fptx[v], _fprx[v])
 
         size_t left = 0, right = NMem;
-        const auto base_tag = tag << static_cast<int>(1 + std::log(NMem) / std::log(NDiv));
-        for (size_t iter = 0; right - left > NMin; iter++)
+        auto extl = true, extr = true;
+        const auto shift = static_cast<int>(1 + std::log(NMem) / std::log(NDiv));
+        const auto base_tag = tag << shift;
+        for (size_t iter = 0; right - left > NMin && right - left > NDiv; iter++)
         {
-            auto delta = (right - left) / (NDiv - 1);
+            auto delta = (right - left) / NDiv;
             if (!delta)
                 delta = 1;
             size_t ndiv;
@@ -211,31 +219,46 @@ private:
                     break;
                 _fptx[ndiv] = _d[left + delta * ndiv];
             }
-            _fptx[NDiv - 1] = _d[right];
-            TIMED(_comm, exchange_mem(ndiv, partner, base_tag | iter, _fptx, _fprx));
+            _fptx[ndiv] = _d[right - 1];
+            ndiv++;
+            TIMED(_comm, exchange_mem(ndiv, partner, base_tag | (shift - 1 - iter), _fptx, _fprx));
 
             const auto dl = Q(0);
-            const auto dr = Q(NDiv - 1);
+            const auto dr = Q(ndiv - 1);
 
-            if (dl && dr)
-                return std::make_pair(left, right);
-            if (!dl && !dr)
-                return std::make_pair(right, right);
+            if (dl == dr)
+            {
+                if (extl == extr)
+                {
+                    extl = dl, extr = dr;
+                    left = 0, right = 0;
+                }
+                else if (dl == extr)
+                    right = left;
+                else if (dr == extl)
+                    left = right;
+                else
+                    throw std::runtime_error("Bitonicity broken");
+            }
 
-            size_t sleft = 0, sright = ndiv;
+            extl = dl, extr = dr;
+
+            size_t sleft = 1, sright = ndiv - 1;
             while (sleft < sright)
             {
                 const auto v = (sleft + sright) / 2;
-                if (Q(v))
+                if (Q(v) == dr)
                     sright = v;
-                else
+                else // if (Q(v) == dl)
                     sleft = v + 1;
             }
-            left = left + (sright - 1) * ndiv;
-            right = left + sright * ndiv;
+            auto old = left;
+            left = old + delta * (sright - 1) + 1;
+            if (sright != ndiv - 1)
+                right = old + delta * sright - 1;
         }
 
-        return std::make_pair(left, right);
+        return std::make_pair(extl ? 0 : left, extr ? NMem : right);
     }
 
     // If kind == ASC:
@@ -256,10 +279,14 @@ private:
     void bitonic_cross_pair(dir_t kind, size_t partner, dir_t dir, tag_t tag)
     {
         const auto base_tag = tag << static_cast<int>(1 + std::log2(NMem / NMsg));
-        decltype(auto) res = intersection_cross_pair(kind, partner, dir, tag);
-        const auto left = res.first;
-        const auto right = res.second;
-        for (auto i = left; i < right; i += NMsg)
+#ifdef BITONIC_MPI_CROSS_TRACE
+        for (size_t i = 0; i < NMem; i++)
+            std::cerr << " " << _d[i];
+        std::cerr << std::endl;
+#endif
+#ifdef BITONIC_MPI_CROSS_DEBUG
+        size_t begin = NMem, end = 0;
+        for (size_t i = 0; i < NMem; i += NMsg)
         {
             const auto mx = std::min(NMsg, NMem - i);
             const auto tg = base_tag | i / NMsg;
@@ -267,10 +294,50 @@ private:
             {
                 decltype(auto) g = _comp.fork();
                 for (size_t j = 0; j < mx; j++)
-                    _d[i + j] = _recv[i + j];
+                {
+                    if (Q0(_d[i + j], _recv[j]))
+                    {
+                        begin = std::min(begin, i + j);
+                        end = std::max(end, i + j + 1);
+                    }
+                }
             }
         }
+#endif
+
+        decltype(auto) res = intersection_cross_pair(kind, partner, dir, tag);
+        const auto left = res.first;
+        const auto right = res.second;
+#ifdef BITONIC_MPI_CROSS_DEBUG
+        if (begin < left || end > right)
+        {
+            LOG("we die ", left, " < ", begin, " < ", end, " < ", right);
+            std::ofstream fout(std::string("dump-") + std::to_string(My), std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+            fout.write(reinterpret_cast<const char *>(_d), sizeof(T) * NMem);
+            std::exit(233);
+        }
+#endif
+
+        for (auto i = left; i < right; i += NMsg)
+        {
+            const auto mx = std::min(NMsg, right - i);
+            const auto tg = base_tag | (i - left) / NMsg;
+            TIMED(_comm, exchange_mem(mx, partner, tg, _d + i, _recv));
+            {
+                decltype(auto) g = _comp.fork();
+                for (size_t j = 0; j < mx; j++)
+                    if (Q0(_d[i + j], _recv[j]))
+                        _d[i + j] = _recv[j];
+            }
+        }
+#ifdef BITONIC_MPI_CROSS_TRACE
+        for (size_t i = 0; i < NMem; i++)
+            std::cerr << " " << _d[i];
+        std::cerr << std::endl;
+#endif
     }
+#undef Q0
+#undef Q
 
     // Requires:
     //     F[@level] is @dir-ordered each

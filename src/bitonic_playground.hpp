@@ -21,7 +21,7 @@ struct storage
 template <typename T>
 class bitonic_remote_playground
 {
-    typedef bitonic_remote<T, 3, 3> bitonic;
+    typedef bitonic_remote<T, 8, 2> bitonic;
     class Channel;
     class stub;
 
