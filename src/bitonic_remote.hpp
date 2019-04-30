@@ -239,11 +239,12 @@ private:
                     left = right;
                 else
                     throw std::runtime_error("Bitonicity broken");
+                break;
             }
 
             extl = dl, extr = dr;
 
-            size_t sleft = 1, sright = ndiv - 1;
+            size_t sleft = 0, sright = ndiv - 1;
             while (sleft < sright)
             {
                 const auto v = (sleft + sright) / 2;
@@ -253,11 +254,10 @@ private:
                     sleft = v + 1;
             }
             auto old = left;
-            left = old + delta * (sright - 1) + 1;
+            if (sright != 0)
+                left = old + delta * (sright - 1) + 1;
             if (sright != ndiv - 1)
                 right = old + delta * sright;
-            else
-                right--;
         }
 
         return std::make_pair(extl ? 0 : left, extr ? NMem : right);
