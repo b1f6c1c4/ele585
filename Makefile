@@ -42,3 +42,22 @@ bin/sn-mpi-bmark: obj/src/main-bmark.o
 bin/sn-playground: obj/src/main-playground.o
 	@mkdir -p $(shell dirname "$@")
 	$(CXX) -o $@ $^
+
+data/report.csv: script/gather.sh
+	$< > $@
+
+data/plot.pdf: script/plot.R data/report.csv
+	Rscript --vanilla $<
+
+test: data/report.csv
+
+define make-test
+
+data/$(SZ0)G-$(N).log: bin/sn-mpi-bmark
+	script/bmark-helper.sh -a -o $$@ -t $$$$(($(SZ0) / 17 + 1)) $(SZ0) $(N) -- -C skylake --contiguous
+
+data/report.csv: data/$(SZ0)G-$(N).log
+
+endef
+
+$(foreach SZ0,16 32 64 128 256 512 1024 2048 4096 8192,$(foreach N,64 128 256 512,$(eval $(make-test))))

@@ -6,8 +6,8 @@ usage()
 {
     cat - <<EOF
 Usage:
-    ./script/bmark-helper.sh
-        [-t <time>]
+    ./script/bmark-helper.sh [-a]
+        [-t <time>] [-o <output>]
         [-m <message size (MiB)>]
         <total data (GiB)>
         <number of parallel tasks>
@@ -17,6 +17,8 @@ EOF
 
 TIME=24:00:00
 MSG=32
+ATTACH=
+OUTPUT=
 POSITIONAL=()
 EXTRA=()
 while [ "$#" -gt "0" ]; do
@@ -25,6 +27,10 @@ while [ "$#" -gt "0" ]; do
             usage
             exit 2
             ;;
+        -a|--attach)
+            ATTACH=YES
+            shift
+            ;;
         -t|--time)
             TIME="$2"
             shift
@@ -32,6 +38,11 @@ while [ "$#" -gt "0" ]; do
             ;;
         -m|--message-size)
             MSG="$2"
+            shift
+            shift
+            ;;
+        -o|--output)
+            OUTPUT="$2"
             shift
             shift
             ;;
@@ -60,20 +71,30 @@ SZ0="${POSITIONAL[0]}"
 N="${POSITIONAL[1]}"
 MEM="$((1024 * $SZ0 / $N))"
 MEMORY="$(($MEM + 512 + $MSG))"
+if [ -z "$OUTPUT" ]; then
+    OUTPUT="data/${SZ0}G-${N}.log"
+fi
 
 make -j8 ./bin/sn-mpi-bmark
 
 mkdir -p data
 
-EXTRA+=(--output "data/${SZ0}G-${N}x$(($MEM/1024))G.log")
-EXTRA+=(--job-name "${SZ0}/${N}x$(($MEM/1024))G")
+EXTRA+=(--job-name "${SZ0}/${N}")
 EXTRA+=(--ntasks "$N")
 EXTRA+=(--cpus-per-task 1)
 EXTRA+=(--mem-per-cpu "$MEMORY")
 EXTRA+=(--time "$TIME")
 
-sbatch \
-    "${EXTRA[@]}" \
-    ./script/bmark.sh "$MEM" "$MSG"
+if [ ! -z "$ATTACH" ]; then
+    salloc \
+        "${EXTRA[@]}" \
+        ./script/bmark.sh "$MEM" "$MSG" \
+        >"$OUTPUT"
+else
+    sbatch \
+        --output "$OUTPUT" \
+        "${EXTRA[@]}" \
+        ./script/bmark.sh "$MEM" "$MSG"
 
-echo "You may want to less +F data/${SZ0}G-${N}x$(($MEM/1024))G.log"
+    echo "You may want to less +F data/${SZ0}G-${N}.log"
+fi
