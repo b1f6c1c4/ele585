@@ -60,4 +60,5 @@ data/report.csv: data/$(SZ0)G-$(N).log
 
 endef
 
-$(foreach SZ0,16 32 64 128 256 512 1024 2048 4096 8192,$(foreach N,64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,16 32 64 128 256 512 1024 2048,$(foreach N,64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,4096,$(foreach N,128 256 512,$(eval $(make-test))))
