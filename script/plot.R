@@ -8,7 +8,7 @@ rawdata$t <- factor(rawdata$total / 8);
 rawdata$c <- factor(rawdata$cores);
 data <- rawdata %>%
     group_by(t, c, type) %>%
-    summarise(tpt=mean(60 / 8 * time/total), tptc=mean(60 / 8 * time/(total/cores)));
+    summarise(tpt=mean(time / (total / 8)), tptc=mean(time * cores / (total/8)));
 
 dtpt <- data %>%
     select(-tptc) %>%
@@ -30,27 +30,46 @@ data$type <- factor(data$type, levels=c("other", "communication", "computation")
 
 pdf('data/plot.pdf', 5, 5);
 
-ggplot(dtpt, aes(x=c, y=speed)) +
-    geom_col() +
+mu <- 4.2e-9 / 60; lambda <- 7e-9 / 60; phi <- 0.86e-9 / 60;
+d <- rawdata %>%
+    filter(type == 'total') %>%
+    mutate(N=total * 1024 * 1024 * 1024 / 8, M=cores) %>%
+    mutate(pred=1024*1024*1024/cores*(phi*log2(N)*log2(M)+(lambda-phi)*log2(M)*log2(M)+mu*log2(N)+(lambda-mu)*log2(M))) %>%
+    mutate(act=time / (total / 8)) %>%
+    group_by(t, c) %>%
+    summarise(prediction=1/mean(pred), actual=1/mean(act)) %>%
+    gather(type, value, prediction:actual, factor_key=TRUE);
+
+ggplot(d, aes(x=c, y=value)) +
+    geom_col(position='dodge', aes(fill=type)) +
     facet_wrap( ~ t) +
     theme(legend.position = 'bottom') +
     xlab('Number of cores') +
-    ylab('Speed (Gi entries per second)') +
+    ylab('Speed (Gi entries per minutes)') +
     ggtitle('Speed up v.s. input size (Gi entries)');
+
+# ggplot(dtpt, aes(x=c, y=speed)) +
+#     geom_col() +
+#     facet_wrap( ~ t) +
+#     theme(legend.position = 'bottom') +
+#     xlab('Number of cores') +
+#     ylab('Speed (Gi entries per minutes)') +
+#     ggtitle('Speed up v.s. input size (Gi entries)');
 
 ggplot(data, aes(x=c, y=tptc)) +
     geom_col(position='stack', aes(fill=type)) +
     facet_wrap( ~ t) +
     theme(legend.position = 'bottom') +
     xlab('Number of cores') +
-    ylab('CPU time (seconds * cores) per Gi entries') +
+    ylab('CPU time (minutes * cores) per Gi entries') +
     ggtitle('CPU time break down v.s. input size (Gi entries)');
+
 ggplot(data, aes(x=t, y=tptc)) +
     geom_col(position='stack', aes(fill=type)) +
     facet_wrap( ~ c) +
     theme(legend.position = 'bottom') +
     xlab('Number of input entries (Gi)') +
-    ylab('CPU time (seconds * cores) per Gi entries') +
+    ylab('CPU time (minutes * cores) per Gi entries') +
     ggtitle('CPU time break down by number of cores');
 
 dev.off();
