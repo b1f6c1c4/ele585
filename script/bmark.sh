@@ -29,4 +29,4 @@ NMSG="$(($MSG * 1024 * 1024 / 8))"
 
 set -x
 
-mpirun ./bin/sn-mpi-bmark "$NMEM" "$NMSG"
+mpirun "$@" ./bin/sn-mpi-bmark "$NMEM" "$NMSG"

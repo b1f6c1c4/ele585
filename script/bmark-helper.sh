@@ -11,7 +11,8 @@ Usage:
         [-m <message size (MiB)>]
         <total data (GiB)>
         <number of parallel tasks>
-        [-- <...other sbatch parameters>]
+        [-- <...other sbatch parameters>
+        [-- <...other mpirun parameters>]]
 EOF
 }
 
@@ -58,6 +59,10 @@ while [ "$#" -gt "0" ]; do
 done
 
 while [ "$#" -gt "0" ]; do
+    if [ "$1" = "--" ]; then
+        shift
+        break
+    fi
     EXTRA+=("$1")
     shift
 done
@@ -88,13 +93,13 @@ EXTRA+=(--time "$TIME")
 if [ ! -z "$ATTACH" ]; then
     salloc \
         "${EXTRA[@]}" \
-        ./script/bmark.sh "$MEM" "$MSG" \
+        ./script/bmark.sh "$MEM" "$MSG" "$@" \
         >"$OUTPUT"
 else
     sbatch \
         --output "$OUTPUT" \
         "${EXTRA[@]}" \
-        ./script/bmark.sh "$MEM" "$MSG"
+        ./script/bmark.sh "$MEM" "$MSG" "$@"
 
     echo "You may want to less +F data/${SZ0}G-${N}.log"
 fi

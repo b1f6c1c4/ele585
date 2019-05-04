@@ -54,11 +54,24 @@ test: data/report.csv
 define make-test
 
 data/$(SZ0)G-$(N).log: bin/sn-mpi-bmark
-	script/bmark-helper.sh -a -o $$@ -t $$$$(($(SZ0) / 17 + 1)) $(SZ0) $(N) -- -C skylake --contiguous
+	script/bmark-helper.sh -a -o $$@ -t $$$$(($(SZ0) / 17 + 1)) $(SZ0) $(N) -- -C skylake --contiguous -- --mca btl tcp,openib
 
 data/report.csv: data/$(SZ0)G-$(N).log
 
+test-N$(N): data/$(SZ0)G-$(N).log
+
 endef
 
-$(foreach SZ0,16 32 64 128 256 512 1024 2048,$(foreach N,64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,1,$(foreach N,1 2 4 8 16 32,$(eval $(make-test))))
+$(foreach SZ0,2,$(foreach N,1 2 4 8 16 32 64,$(eval $(make-test))))
+$(foreach SZ0,4,$(foreach N,1 2 4 8 16 32 64 128,$(eval $(make-test))))
+$(foreach SZ0,8,$(foreach N,1 2 4 8 16 32 64 128 256,$(eval $(make-test))))
+$(foreach SZ0,16,$(foreach N,1 2 4 8 16 32 64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,32,$(foreach N,1 2 4 8 16 32 64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,64,$(foreach N,2 4 8 16 32 64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,128,$(foreach N,4 8 16 32 64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,256,$(foreach N,8 16 32 64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,512,$(foreach N,16 32 64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,1024,$(foreach N,32 64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,2048,$(foreach N,64 128 256 512,$(eval $(make-test))))
 $(foreach SZ0,4096,$(foreach N,128 256 512,$(eval $(make-test))))
