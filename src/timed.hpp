@@ -56,6 +56,8 @@ public:
 			save();
 			_aggr = other._aggr;
 			_start = other._start;
+
+			return *this;
 		}
 
 		~guard()

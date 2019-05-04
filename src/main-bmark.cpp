@@ -32,22 +32,24 @@ namespace fs = std::experimental::filesystem;
 
 int main(int argc, char *argv[])
 {
-    MPI_Init(&argc, &argv);
+	MPI_Init(&argc, &argv);
 
-    if (argc != 3)
+	if (argc != 3)
 	{
 		std::cout
 			<< "Usage: mpiexec -n <NMach> bin/sn-mpi-bmark \\" << std::endl
-			<< "    <NMem> <NMsg>" << std::endl;
-        return 3;
+			<< "	<NMem> <NMsg>" << std::endl;
+		return 3;
 	}
 
-    const size_t nmem = std::atoll(argv[1]);
-    const size_t nmsg = std::atoll(argv[2]);
+	const size_t nmem = std::atoll(argv[1]);
+	const size_t nmsg = std::atoll(argv[2]);
 
-    int nmach, my;
-    MPI_Comm_size(MPI_COMM_WORLD, &nmach);
-    MPI_Comm_rank(MPI_COMM_WORLD, &my);
+	int nmach_i, my_i;
+	MPI_Comm_size(MPI_COMM_WORLD, &nmach_i);
+	MPI_Comm_rank(MPI_COMM_WORLD, &my_i);
+
+	const size_t nmach = nmach_i, my = my_i;
 #define LOG(...) write_log(nmach, my, __VA_ARGS__)
 
 	fs::path ftmp;
@@ -89,6 +91,6 @@ int main(int argc, char *argv[])
 	else
 		LOG("Global result: correct");
 
-    MPI_Finalize();
+	MPI_Finalize();
 	return ret;
 }
