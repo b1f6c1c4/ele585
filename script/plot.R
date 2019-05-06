@@ -13,13 +13,13 @@ data <- rawdata %>%
 dtpt <- data %>%
     select(-tptc) %>%
     spread(type, tpt) %>%
-    mutate(other = total - communication - computation) %>%
-    mutate(speed = 1 / total) %>%
+    mutate(other=total - communication - computation) %>%
+    mutate(speed=1 / total) %>%
     select(-total);
 dtptc <- data %>%
     select(-tpt) %>%
     spread(type, tptc) %>%
-    mutate(other = total - communication - computation) %>%
+    mutate(other=total - communication - computation) %>%
     select(-total);
 
 tmp <- gather(dtpt, type, tpt, communication:other, factor_key=TRUE);
@@ -37,39 +37,45 @@ d <- rawdata %>%
     mutate(pred=1024*1024*1024/cores*(phi*log2(N)*log2(M)+(lambda-phi)*log2(M)*log2(M)+mu*log2(N)+(lambda-mu)*log2(M))) %>%
     mutate(act=time / (total / 8)) %>%
     group_by(t, c) %>%
-    summarise(prediction=1/mean(pred), actual=1/mean(act)) %>%
-    gather(type, value, prediction:actual, factor_key=TRUE);
+    summarise(actual=1/mean(act), prediction=1/mean(pred)) %>%
+    gather(type, value, actual:prediction, factor_key=TRUE);
 
-ggplot(d, aes(x=c, y=value)) +
-    geom_col(position='dodge', aes(fill=type)) +
+ggplot(d, aes(x=c, y=value, group=type)) +
+    geom_line(aes(linetype=type)) +
+    scale_y_log10() +
     facet_wrap( ~ t) +
-    theme(legend.position = 'bottom') +
+    theme_bw() +
+    theme(legend.position='bottom') +
+    theme(axis.text.x=element_text(angle=90, hjust=1)) +
     xlab('Number of cores') +
-    ylab('Speed (Gi entries per minutes)') +
-    ggtitle('Speed up v.s. input size (Gi entries)');
+    ylab('Speed (Gi entries per minutes)');
 
 # ggplot(dtpt, aes(x=c, y=speed)) +
 #     geom_col() +
 #     facet_wrap( ~ t) +
-#     theme(legend.position = 'bottom') +
+#     theme(legend.position='bottom') +
 #     xlab('Number of cores') +
 #     ylab('Speed (Gi entries per minutes)') +
 #     ggtitle('Speed up v.s. input size (Gi entries)');
 
 ggplot(data, aes(x=c, y=tptc)) +
     geom_col(position='stack', aes(fill=type)) +
+    scale_fill_grey() +
     facet_wrap( ~ t) +
-    theme(legend.position = 'bottom') +
+    theme_bw() +
+    theme(legend.position='bottom') +
+    theme(axis.text.x=element_text(angle=90, hjust=1)) +
     xlab('Number of cores') +
-    ylab('CPU time (minutes * cores) per Gi entries') +
-    ggtitle('CPU time break down v.s. input size (Gi entries)');
+    ylab('CPU time (minutes * cores) per Gi entries');
 
 ggplot(data, aes(x=t, y=tptc)) +
     geom_col(position='stack', aes(fill=type)) +
+    scale_fill_grey() +
     facet_wrap( ~ c) +
-    theme(legend.position = 'bottom') +
+    theme_bw() +
+    theme(legend.position='bottom') +
+    theme(axis.text.x=element_text(angle=90, hjust=1)) +
     xlab('Number of input entries (Gi)') +
-    ylab('CPU time (minutes * cores) per Gi entries') +
-    ggtitle('CPU time break down by number of cores');
+    ylab('CPU time (minutes * cores) per Gi entries');
 
 dev.off();

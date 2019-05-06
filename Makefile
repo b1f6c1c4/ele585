@@ -62,12 +62,11 @@ test-N$(N): data/$(SZ0)G-$(N).log
 
 endef
 
-$(foreach SZ0,1,$(foreach N,1 2 4 8 16 32,$(eval $(make-test))))
-$(foreach SZ0,2,$(foreach N,1 2 4 8 16 32 64,$(eval $(make-test))))
-$(foreach SZ0,4,$(foreach N,1 2 4 8 16 32 64 128,$(eval $(make-test))))
-$(foreach SZ0,8,$(foreach N,1 2 4 8 16 32 64 128 256,$(eval $(make-test))))
-$(foreach SZ0,16,$(foreach N,1 2 4 8 16 32 64 128 256 512,$(eval $(make-test))))
-$(foreach SZ0,32,$(foreach N,1 2 4 8 16 32 64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,2,$(foreach N,2 4 8 16 32 64,$(eval $(make-test))))
+$(foreach SZ0,4,$(foreach N,2 4 8 16 32 64 128,$(eval $(make-test))))
+$(foreach SZ0,8,$(foreach N,2 4 8 16 32 64 128 256,$(eval $(make-test))))
+$(foreach SZ0,16,$(foreach N,2 4 8 16 32 64 128 256 512,$(eval $(make-test))))
+$(foreach SZ0,32,$(foreach N,2 4 8 16 32 64 128 256 512,$(eval $(make-test))))
 $(foreach SZ0,64,$(foreach N,2 4 8 16 32 64 128 256 512,$(eval $(make-test))))
 $(foreach SZ0,128,$(foreach N,4 8 16 32 64 128 256 512,$(eval $(make-test))))
 $(foreach SZ0,256,$(foreach N,8 16 32 64 128 256 512,$(eval $(make-test))))
