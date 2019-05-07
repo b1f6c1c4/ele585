@@ -31,6 +31,43 @@ data$type <- factor(data$type, levels=c("other", "communication", "computation")
 pdf('data/plot.pdf', 5, 5);
 
 mu <- 4.2e-9 / 60; lambda <- 7e-9 / 60; phi <- 0.86e-9 / 60;
+
+d <- rawdata %>%
+    filter(type == 'communication') %>%
+    mutate(N=total * 1024 * 1024 * 1024 / 8, M=cores) %>%
+    mutate(pred=1024*1024*1024*((lambda)*log2(M)*log2(M)+(lambda)*log2(M))) %>%
+    mutate(act=cores * time / (total / 8)) %>%
+    group_by(t, c) %>%
+    summarise(actual=mean(act), prediction=mean(pred)) %>%
+    gather(type, value, actual:prediction, factor_key=TRUE);
+
+ggplot(d, aes(x=c, y=value, group=type)) +
+    geom_line(aes(linetype=type)) +
+    facet_wrap( ~ t) +
+    theme_bw() +
+    theme(legend.position='bottom') +
+    theme(axis.text.x=element_text(angle=90, hjust=1)) +
+    xlab('Number of cores') +
+    ylab('CPU communication time (minute * cores) per Gi entries');
+
+d <- rawdata %>%
+    filter(type == 'computation') %>%
+    mutate(N=total * 1024 * 1024 * 1024 / 8, M=cores) %>%
+    mutate(pred=1024*1024*1024*(phi*log2(N)*log2(M)+(-phi)*log2(M)*log2(M)+mu*log2(N)+(-mu)*log2(M))) %>%
+    mutate(act=cores * time / (total / 8)) %>%
+    group_by(t, c) %>%
+    summarise(actual=mean(act), prediction=mean(pred)) %>%
+    gather(type, value, actual:prediction, factor_key=TRUE);
+
+ggplot(d, aes(x=c, y=value, group=type)) +
+    geom_line(aes(linetype=type)) +
+    facet_wrap( ~ t) +
+    theme_bw() +
+    theme(legend.position='bottom') +
+    theme(axis.text.x=element_text(angle=90, hjust=1)) +
+    xlab('Number of cores') +
+    ylab('CPU computation time (minute * cores) per Gi entries');
+
 d <- rawdata %>%
     filter(type == 'total') %>%
     mutate(N=total * 1024 * 1024 * 1024 / 8, M=cores) %>%
